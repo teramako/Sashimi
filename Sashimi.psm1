@@ -1,30 +1,57 @@
 function Invoke-RawCommand {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = "Default")]
     [Alias("raw")]
     param(
-        [Parameter(ValueFromRemainingArguments)]
+        [Parameter(ParameterSetName = "Default", Mandatory, ValueFromRemainingArguments, Position = 0)]
         [string[]] $Arguments
+        ,
+        [Parameter(ParameterSetName = "ScriptBlock", Mandatory, Position = 0)]
+        [scriptblock] $Script
     )
 
-    if ($Arguments.Count -eq 0) {
-        throw "raw: no command specified"
+    if ($PSCmdlet.ParameterSetName -eq "ScriptBlock") {
+        # 最初のステートメントのみ取得する
+        $cmdAst = $Script.Ast.EndBlock.Statements |
+            Where-Object { $_ -is [System.Management.Automation.Language.CommandAst] } |
+            Select-Object -First 1
+        if (-not $cmdAst) {
+            throw "raw: no command specified"
+        }
+
+        $cmd = Get-Command -CommandType Application -Name $cmdAst.GetCommandName() | Select-Object -First 1
+        if (-not $cmd) {
+            throw "raw: command '$cmdName' not found"
+        }
+
+        $psi = [System.Diagnostics.ProcessStartInfo]::new()
+        $psi.FileName = $cmd.Path
+
+        foreach ($elem in $cmdAst.CommandElements[1..($cmdAst.CommandElements.Count - 1)]) {
+            $psi.ArgumentList.Add($elem.Extent.Text)
+        }
+    } else {
+        if ($Arguments.Count -eq 0) {
+            throw "raw: no command specified"
+        }
+
+        $exe = $Arguments[0]
+        $argList = $Arguments[1..($Arguments.Count - 1)]
+
+        # ProcessStartInfo を構築
+        $psi = [System.Diagnostics.ProcessStartInfo]::new()
+        $psi.FileName = $exe
+
+        # 引数は AddArgument で安全に渡す
+        foreach ($a in $argList) {
+            $psi.ArgumentList.Add($a)
+        }
     }
 
-    $exe = $Arguments[0]
-    $argList = $Arguments[1..($Arguments.Count - 1)]
-
-    # ProcessStartInfo を構築
-    $psi = [System.Diagnostics.ProcessStartInfo]::new()
-    $psi.FileName = $exe
     $psi.UseShellExecute = $false
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError  = $true
     $psi.RedirectStandardInput  = $true
 
-    # 引数は AddArgument で安全に渡す
-    foreach ($a in $argList) {
-        $psi.ArgumentList.Add($a)
-    }
 
     $proc = [System.Diagnostics.Process]::new()
     $proc.StartInfo = $psi
