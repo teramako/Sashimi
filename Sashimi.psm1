@@ -9,6 +9,8 @@ function Invoke-RawCommand {
         [scriptblock] $Script
     )
 
+    $ErrorActionPreference = 'Stop'
+
     if ($PSCmdlet.ParameterSetName -eq "ScriptBlock") {
         # 最初のステートメントのみ取得する
         $cmdAst = $Script.Ast.EndBlock.Statements |
