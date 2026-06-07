@@ -1,2 +1,5 @@
 # Sashimi
-Raw process I/O for PowerShell — execute external commands and handle stdin/stdout/stderr as byte streams.
+
+Sashimi provides raw access to external processes in PowerShell.
+No encoding assumptions. No text conversion. Just pure byte streams.
+
