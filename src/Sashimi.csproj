@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutDir>../libs</OutDir>
+    <VersionPrefix>0.0.1</VersionPrefix>
+
+    <AssemblyName>Sashimi</AssemblyName>
+    <RootNamespace>Sashimi</RootNamespace>
+
+    <!-- Disable deps.json generation -->
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Management.Automation" Version="7.6.*" PrivateAssets="All"/>
+  </ItemGroup>
+</Project>
