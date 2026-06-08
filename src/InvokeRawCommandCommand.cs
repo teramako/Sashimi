@@ -111,7 +111,13 @@ public class InvokeRawCommandCommand : PSCmdlet
                                                  .FirstOrDefault(cmdAst => cmdAst is CommandAst) as CommandAst
                          ?? throw new InvalidOperationException("raw: no command specified");
 
-            var arguments = cmdAst.CommandElements.Skip(1).Select(elem => elem.Extent.Text);
+            var arguments = cmdAst.CommandElements.Skip(1)
+                                                  .Select(elem => elem switch
+                                                  {
+                                                      StringConstantExpressionAst str => str.Value,
+                                                      ExpandableStringExpressionAst exp => exp.Value,
+                                                      _ => elem.Extent.Text
+                                                  });
             return CreateProcessStartInfo(cmdAst.GetCommandName(), arguments);
         }
         else
