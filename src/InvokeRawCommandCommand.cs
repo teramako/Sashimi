@@ -71,6 +71,12 @@ public class InvokeRawCommandCommand : PSCmdlet
         }
     }
 
+    protected override void StopProcessing()
+    {
+        WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Stopping process");
+        _processRunner.Kill();
+    }
+
     protected override void EndProcessing()
     {
         _processRunner.CloseStdin();

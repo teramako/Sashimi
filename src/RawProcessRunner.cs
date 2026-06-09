@@ -78,6 +78,17 @@ public sealed class RawProcessRunner : IAsyncDisposable
             OnStderr?.Invoke(buffer.AsSpan(0, read).ToArray());
         }
     }
+
+    public void Kill()
+    {
+        try
+        {
+            _process.Kill(entireProcessTree: true);
+        }
+        catch
+        {
+        }
+    }
     
     public async Task<int> WaitForExitAsync()
     {
