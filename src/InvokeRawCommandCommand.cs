@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Management.Automation;
 using System.Management.Automation.Language;
 
@@ -49,9 +48,8 @@ public class InvokeRawCommandCommand : PSCmdlet
 
     protected override void BeginProcessing()
     {
-        var psi = BuildProcessStartInfo();
-        WriteVerbose($"[{psi.FileName}] Start with arguments: [{string.Join(", ", psi.ArgumentList)}]");
-        _processRunner = new RawProcessRunner(psi);
+        var cmdInfo = GetCommandAndArguments();
+        _processRunner = new RawProcessRunner(cmdInfo.Path, cmdInfo.Arguments);
         if (Output.HasFlag(OutputType.Stdout))
         {
             _processRunner.OnStdout += OnOutputChunk;
@@ -99,7 +97,7 @@ public class InvokeRawCommandCommand : PSCmdlet
         SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
     }
 
-    private ProcessStartInfo BuildProcessStartInfo()
+    private (string Path, IEnumerable<string> Arguments) GetCommandAndArguments()
     {
         if (ParameterSetName is ScriptBlockParameterSet)
         {
@@ -116,11 +114,11 @@ public class InvokeRawCommandCommand : PSCmdlet
                                                       ExpandableStringExpressionAst exp => exp.Value,
                                                       _ => elem.Extent.Text
                                                   });
-            return RawProcessRunner.CreateProcessStartInfo(GetAppInfo(cmdAst.GetCommandName()).Path, arguments);
+            return (GetAppInfo(cmdAst.GetCommandName()).Path, arguments);
         }
         else
         {
-            return RawProcessRunner.CreateProcessStartInfo(GetAppInfo(Command).Path, Arguments);
+            return (GetAppInfo(Command).Path, Arguments);
         }
 
         ApplicationInfo GetAppInfo(string name)

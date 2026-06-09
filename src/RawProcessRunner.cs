@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace Sashimi;
 
-public sealed class RawProcessRunner(ProcessStartInfo psi) : IAsyncDisposable
+public sealed class RawProcessRunner : IAsyncDisposable
 {
     public static ProcessStartInfo CreateProcessStartInfo(string fileName, IEnumerable<string> arguments)
         => new(fileName, arguments)
@@ -14,11 +14,12 @@ public sealed class RawProcessRunner(ProcessStartInfo psi) : IAsyncDisposable
         };
 
     public RawProcessRunner(string fileName, IEnumerable<string> arguments)
-        : this(CreateProcessStartInfo(fileName, arguments))
     {
+        var psi = CreateProcessStartInfo(fileName, arguments);
+        _process = new() { StartInfo = psi };
     }
 
-    private readonly Process _process = new() { StartInfo = psi };
+    private readonly Process _process;
     private const int BufferSize = 4096;
 
     public string Name => _process.StartInfo.FileName;
