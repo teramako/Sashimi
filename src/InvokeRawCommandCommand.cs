@@ -58,13 +58,15 @@ public class InvokeRawCommandCommand : PSCmdlet
         {
             _processRunner.OnStderr += OnOutputChunk;
         }
-        _ = _processRunner.StartAsync();
+        _processRunner.StartAsync().Wait();
+        WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Started process with arguments: [{string.Join(", ", _processRunner.Arguments)}]");
     }
 
     protected override void ProcessRecord()
     {
         if (InputBytes is not null)
         {
+            WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Read {InputBytes.Length} bytes from pipeline");
             _ = _processRunner.WriteStdinAsync(InputBytes);
         }
     }
@@ -85,6 +87,7 @@ public class InvokeRawCommandCommand : PSCmdlet
         {
             while (_stdoutQueue.TryDequeue(out var chunk))
             {
+                WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Output chunk: {chunk.Length} bytes");
                 WriteObject(chunk, false);
             }
             if (!_stdoutCompleted)
@@ -93,7 +96,7 @@ public class InvokeRawCommandCommand : PSCmdlet
 
         var exitCode = task.Result;
 
-        WriteVerbose($"[{_processRunner.Name}] End [ExitCode = {exitCode}]");
+        WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] End [ExitCode = {exitCode}]");
         SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
     }
 

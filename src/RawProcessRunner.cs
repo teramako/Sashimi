@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 
 namespace Sashimi;
@@ -17,12 +18,22 @@ public sealed class RawProcessRunner : IAsyncDisposable
     {
         var psi = CreateProcessStartInfo(fileName, arguments);
         _process = new() { StartInfo = psi };
+        Arguments = psi.ArgumentList.AsReadOnly();
     }
 
     private readonly Process _process;
     private const int BufferSize = 4096;
 
     public string Name => _process.StartInfo.FileName;
+    public int Pid
+    {
+        get => field == -1
+               ? throw new InvalidOperationException("Process has not been started yet.")
+               : field;
+        private set;
+    } = -1;
+    public ReadOnlyCollection<string> Arguments { get; }
+
     public event Action<byte[]>? OnStdout;
     public event Action<byte[]>? OnStderr;
 
@@ -31,6 +42,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
         _process.Start();
         _ = Task.Run(ReadStdoutLoop);
         _ = Task.Run(ReadStderrLoop);
+        Pid = _process.Id;
     }
     
     public Task WriteStdinAsync(byte[] buffer)
@@ -76,6 +88,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
     public ValueTask DisposeAsync()
     {
         _process.Dispose();
+        Pid = -1;
         return ValueTask.CompletedTask;
     }
 }
