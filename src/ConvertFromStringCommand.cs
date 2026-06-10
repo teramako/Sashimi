@@ -18,10 +18,13 @@ public sealed class ConvertFromStringComand : Cmdlet
     protected override void BeginProcessing()
     {
         _encoding = System.Text.Encoding.GetEncoding(Encoding);
+        WriteVerbose($"[ConvertFrom-String] Set encoding: {_encoding.BodyName} [{_encoding.EncodingName}]");
     }
 
     protected override void ProcessRecord()
     {
-        WriteObject(_encoding.GetBytes(InputString), false);
+        var bytes = _encoding.GetBytes(InputString);
+        WriteVerbose($"[ConvertFrom-String] Output {bytes.Length} bytes");
+        WriteObject(bytes, false);
     }
 }
