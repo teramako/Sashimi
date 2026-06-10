@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using System.Collections.Concurrent;
 using System.Management.Automation;
 using System.Management.Automation.Language;
 
@@ -14,16 +14,15 @@ public enum OutputType
 
 [Cmdlet(VerbsLifecycle.Invoke, "RawCommand", DefaultParameterSetName = NormalParameterSet)]
 [Alias("raw")]
+[OutputType(typeof(byte[]))]
 public class InvokeRawCommandCommand : PSCmdlet
 {
     private const string NormalParameterSet = "Normal";
     private const string ScriptBlockParameterSet = "ScriptBlock";
 
-    private const int BufferLength = 4096;
-
     [Parameter(ParameterSetName = NormalParameterSet, Mandatory = true, Position = 0)]
     public string Command { get; set; } = null!;
-    
+
     [Parameter(ParameterSetName = NormalParameterSet, ValueFromRemainingArguments = true, Position = 1)]
     public string[] Arguments { get; set; } = [];
 
@@ -36,72 +35,79 @@ public class InvokeRawCommandCommand : PSCmdlet
     [Parameter()]
     public OutputType Output { get; set; } = OutputType.Stdout;
 
-    private readonly List<byte[]> _stdinChunks = [];
+    private RawProcessRunner _processRunner = null!;
+
+    private readonly ConcurrentQueue<byte[]> _stdoutQueue = [];
+    private readonly AutoResetEvent _stdoutEvent = new(false);
+    private volatile bool _stdoutCompleted = false;
+
+    private void OnOutputChunk(byte[] chunk)
+    {
+        _stdoutQueue.Enqueue(chunk);
+        _stdoutEvent.Set();
+    }
 
     protected override void BeginProcessing()
+    {
+        var cmdInfo = GetCommandAndArguments();
+        _processRunner = new RawProcessRunner(cmdInfo.Path, cmdInfo.Arguments);
+        if (Output.HasFlag(OutputType.Stdout))
         {
-            base.BeginProcessing();
+            _processRunner.OnStdout += OnOutputChunk;
         }
+        if (Output.HasFlag(OutputType.Stderr))
+        {
+            _processRunner.OnStderr += OnOutputChunk;
+        }
+        _processRunner.StartAsync().Wait();
+        WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Started process with arguments: [{string.Join(", ", _processRunner.Arguments)}]");
+    }
+
     protected override void ProcessRecord()
     {
         if (InputBytes is not null)
         {
-            _stdinChunks.Add(InputBytes);
+            WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Read {InputBytes.Length} bytes from pipeline");
+            _ = _processRunner.WriteStdinAsync(InputBytes);
         }
+    }
+
+    protected override void StopProcessing()
+    {
+        WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Stopping process");
+        _processRunner.Kill();
     }
 
     protected override void EndProcessing()
     {
-        var psi = BuildProcessStartInfo();
-        WriteVerbose($"[{psi.FileName}] Start with arguments: [{string.Join(", ", psi.ArgumentList)}]");
+        _processRunner.CloseStdin();
 
-        using var proc = Process.Start(psi);
-
-        if (proc is null)
-            return;
-
-        // stdin
-        if (_stdinChunks.Count > 0)
+        var task = Task.Run(async () =>
         {
-            WriteVerbose($"[{psi.FileName}] Write data into Stdin");
-            var stdin = proc.StandardInput.BaseStream;
-            foreach (var chunk in _stdinChunks)
-                stdin.Write(chunk, 0, chunk.Length);
-            stdin.Close();
+            var exitCode = await _processRunner.WaitForExitAsync();
+            _stdoutCompleted = true;
+            _stdoutEvent.Set();
+            return exitCode;
+        });
+
+        while (!_stdoutCompleted || !_stdoutQueue.IsEmpty)
+        {
+            while (_stdoutQueue.TryDequeue(out var chunk))
+            {
+                WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Output chunk: {chunk.Length} bytes");
+                WriteObject(chunk, false);
+            }
+            if (!_stdoutCompleted)
+                _stdoutEvent.WaitOne();
         }
 
-        var stdout = proc.StandardOutput.BaseStream;
-        var stderr = proc.StandardError.BaseStream;
+        var exitCode = task.Result;
 
-        if (Output.HasFlag(OutputType.Stdout))
-        {
-            WriteVerbose($"[{psi.FileName}] Output data in Stdout");
-            WriteBytes(stdout);
-        }
-
-        if (Output.HasFlag(OutputType.Stderr))
-        {
-            WriteVerbose($"[{psi.FileName}] Output data in Stderr");
-            WriteBytes(stderr);
-        }
-
-        proc.WaitForExit();
-        WriteVerbose($"[{psi.FileName}] End [ExitCode = {proc.ExitCode}]");
-        SessionState.PSVariable.Set("LASTEXITCODE", proc.ExitCode);
+        WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] End [ExitCode = {exitCode}]");
+        SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
     }
 
-    private void WriteBytes(Stream stream)
-    {
-        int read;
-        Span<byte> buffer = stackalloc byte[BufferLength];
-        while ((read = stream.Read(buffer)) > 0)
-        {
-            var chunk = buffer[..read].ToArray();
-            WriteObject(chunk, false);
-        }
-    }
-
-    private ProcessStartInfo BuildProcessStartInfo()
+    private (string Path, IEnumerable<string> Arguments) GetCommandAndArguments()
     {
         if (ParameterSetName is ScriptBlockParameterSet)
         {
@@ -118,25 +124,15 @@ public class InvokeRawCommandCommand : PSCmdlet
                                                       ExpandableStringExpressionAst exp => exp.Value,
                                                       _ => elem.Extent.Text
                                                   });
-            return CreateProcessStartInfo(cmdAst.GetCommandName(), arguments);
+            return (GetAppInfo(cmdAst.GetCommandName()).Path, arguments);
         }
         else
         {
-            ArgumentNullException.ThrowIfNullOrWhiteSpace(Command);
-            return CreateProcessStartInfo(Command, Arguments);
+            return (GetAppInfo(Command).Path, Arguments);
         }
 
-        ApplicationInfo GetCommand(string name)
+        ApplicationInfo GetAppInfo(string name)
             => InvokeCommand.GetCommand(name, CommandTypes.Application) as ApplicationInfo
                 ?? throw new InvalidOperationException($"raw: command '{name}' not found");
-
-        ProcessStartInfo CreateProcessStartInfo(string cmdName, IEnumerable<string> arguments)
-            => new(GetCommand(cmdName).Path, arguments)
-            {
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                RedirectStandardInput = true,
-            };
     }
 }
