@@ -101,6 +101,11 @@ public class InvokeRawCommandCommand : PSCmdlet
                 _stdoutEvent.WaitOne();
         }
 
+        try
+        {
+            task.Wait();
+        }
+        catch { }
         var exitCode = task.Result;
 
         WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] End [ExitCode = {exitCode}]");
