@@ -104,7 +104,7 @@ PrivateData = @{
         ProjectUri = 'https://github.com/teramako/Sashimi'
 
         # A URL to an icon representing this module.
-        # IconUri = ''
+        IconUri = 'https://raw.githubusercontent.com/teramako/Sashimi/refs/heads/main/docs/img/Sashimi_85.png'
 
         # ReleaseNotes of this module
         # ReleaseNotes = ''
@@ -120,7 +120,7 @@ PrivateData = @{
 
     } # End of PSData hashtable
 
-} # End of PrivateData hashtable
+ } # End of PrivateData hashtable
 
 # HelpInfo URI of this module
 # HelpInfoURI = ''
