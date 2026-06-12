@@ -23,6 +23,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
 
     private readonly Process _process;
     private const int BufferSize = 4096;
+    private Task _outputTask = null!;
 
     public string Name => _process.StartInfo.FileName;
     public int Pid
@@ -40,8 +41,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
     public async Task StartAsync()
     {
         _process.Start();
-        _ = Task.Run(ReadStdoutLoop);
-        _ = Task.Run(ReadStderrLoop);
+        _outputTask = Task.WhenAll(Task.Run(ReadStdoutLoop), Task.Run(ReadStderrLoop));
         Pid = _process.Id;
     }
     
@@ -49,6 +49,8 @@ public sealed class RawProcessRunner : IAsyncDisposable
     {
         return _process.StandardInput.BaseStream.WriteAsync(buffer, 0, buffer.Length);
     }
+
+    public void WaitOutput() => _outputTask.Wait();
     
     public void CloseStdin()
     {
