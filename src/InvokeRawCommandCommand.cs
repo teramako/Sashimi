@@ -41,6 +41,11 @@ public class InvokeRawCommandCommand : PSCmdlet
     private readonly AutoResetEvent _stdoutEvent = new(false);
     private volatile bool _queueInputCompleted = false;
 
+    private long _totalReadBytes;
+    private int _readCount;
+    private long _totalWriteBytes;
+    private int _writeCount;
+
     private void OnOutputChunk(byte[] chunk)
     {
         _stdoutQueue.Enqueue(chunk);
@@ -67,7 +72,9 @@ public class InvokeRawCommandCommand : PSCmdlet
     {
         if (InputBytes is not null)
         {
-            WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Read {InputBytes.Length} bytes from pipeline");
+            _totalReadBytes += InputBytes.Length;
+            _readCount++;
+            WriteInformation($"[{_processRunner.Pid}][{_processRunner.Name}] Read {InputBytes.Length} bytes from pipeline", ["Sashimi.Raw.ReadChunk"]);
             _ = _processRunner.WriteStdinAsync(InputBytes);
         }
     }
@@ -80,6 +87,10 @@ public class InvokeRawCommandCommand : PSCmdlet
 
     protected override void EndProcessing()
     {
+        if (_totalReadBytes > 0)
+        {
+            WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Read total: {_totalReadBytes}, count: {_readCount}");
+        }
         _processRunner.CloseStdin();
 
         var exitTask = _processRunner.WaitForExitAsync();
@@ -94,14 +105,21 @@ public class InvokeRawCommandCommand : PSCmdlet
         {
             while (_stdoutQueue.TryDequeue(out var chunk))
             {
-                WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Output chunk: {chunk.Length} bytes");
+                _totalWriteBytes += chunk.Length;
+                _writeCount++;
+                WriteInformation($"[{_processRunner.Pid}][{_processRunner.Name}] Output chunk: {chunk.Length} bytes", ["Sashimi.Raw.OutputChunk"]);
                 WriteObject(chunk, false);
             }
             if (!_queueInputCompleted)
             {
-                WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Wait");
+                WriteInformation($"[{_processRunner.Pid}][{_processRunner.Name}] Wait", ["Sashimi.Raw.Wait"]);
                 _stdoutEvent.WaitOne();
             }
+        }
+
+        if (_totalWriteBytes > 0)
+        {
+            WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Output total: {_totalWriteBytes}, count: {_writeCount}");
         }
 
         try

@@ -25,6 +25,10 @@ public sealed class ConvertToStringCommand : Cmdlet
     private readonly AutoResetEvent _queueEvent = new(false);
     private volatile bool _readerCompleted = false;
 
+    private long _totalReadBytes;
+    private int _readCount;
+    private int _lineCount;
+
     protected override void BeginProcessing()
     {
         _server = new(PipeDirection.Out, HandleInheritability.None);
@@ -63,29 +67,42 @@ public sealed class ConvertToStringCommand : Cmdlet
     {
         if (InputBytes.Length > 0)
         {
-            WriteVerbose($"[ConvertToString] Read {InputBytes.Length} bytes from pipeline");
+            _totalReadBytes += InputBytes.Length;
+            _readCount++;
+            WriteInformation($"Read {InputBytes.Length} bytes from pipeline", ["Sashimi.Raw.ReadChunk"]);
             _server?.Write(InputBytes, 0, InputBytes.Length);
         }
     }
 
     protected override void EndProcessing()
     {
+        if (_totalReadBytes > 0)
+        {
+            WriteVerbose($"[ConvertTo-String] Read total: {_totalReadBytes}, count: {_readCount}");
+        }
         _server?.Close();
 
         while (!_readerCompleted || !_queue.IsEmpty)
         {
             while (_queue.TryDequeue(out var line))
             {
-                WriteVerbose($"[ConvertToString] Output [{line}]");
+                _lineCount++;
+                WriteInformation($"Output line: [{_lineCount}] {line}", ["Sashimi.Raw.OutputLine"]);
                 WriteObject(line);
             }
 
             if (!_readerCompleted)
             {
-                WriteVerbose($"[ConvertToString] Wait");
+                WriteInformation("Wait", ["Sashimi.Raw.Wait"]);
                 _queueEvent.WaitOne();
             }
         }
+
+        if (_lineCount > 0)
+        {
+            WriteVerbose($"[ConvertTo-String] Output total line: {_lineCount}");
+        }
+
         try
         {
             _readerTask?.Wait();

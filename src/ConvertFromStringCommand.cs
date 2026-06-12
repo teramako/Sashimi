@@ -15,6 +15,9 @@ public sealed class ConvertFromStringComand : Cmdlet
 
     private Encoding _encoding = null!;
 
+    private long _totalWriteBytes;
+    private int _writeCount;
+
     protected override void BeginProcessing()
     {
         _encoding = System.Text.Encoding.GetEncoding(Encoding);
@@ -24,7 +27,14 @@ public sealed class ConvertFromStringComand : Cmdlet
     protected override void ProcessRecord()
     {
         var bytes = _encoding.GetBytes(InputString);
-        WriteVerbose($"[ConvertFrom-String] Output {bytes.Length} bytes");
+        _totalWriteBytes += bytes.Length;
+        _writeCount++;
+        WriteInformation($"Output chunk: {bytes.Length} bytes", ["Sashimi.Raw.OutputChunk"]);
         WriteObject(bytes, false);
+    }
+
+    protected override void EndProcessing()
+    {
+        WriteVerbose($"[ConvertFrom-String] Output total: {_totalWriteBytes}, count: {_writeCount}");
     }
 }
