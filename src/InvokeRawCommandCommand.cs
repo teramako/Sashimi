@@ -39,7 +39,7 @@ public class InvokeRawCommandCommand : PSCmdlet
 
     private readonly ConcurrentQueue<byte[]> _stdoutQueue = [];
     private readonly AutoResetEvent _stdoutEvent = new(false);
-    private volatile bool _stdoutCompleted = false;
+    private volatile bool _queueInputCompleted = false;
 
     private void OnOutputChunk(byte[] chunk)
     {
@@ -82,31 +82,35 @@ public class InvokeRawCommandCommand : PSCmdlet
     {
         _processRunner.CloseStdin();
 
-        var task = Task.Run(async () =>
+        var exitTask = _processRunner.WaitForExitAsync();
+        var outputTask = Task.Run(() =>
         {
-            var exitCode = await _processRunner.WaitForExitAsync();
-            _stdoutCompleted = true;
+            _processRunner.WaitOutput();
+            _queueInputCompleted = true;
             _stdoutEvent.Set();
-            return exitCode;
         });
 
-        while (!_stdoutCompleted || !_stdoutQueue.IsEmpty)
+        while (!_queueInputCompleted || !_stdoutQueue.IsEmpty)
         {
             while (_stdoutQueue.TryDequeue(out var chunk))
             {
                 WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Output chunk: {chunk.Length} bytes");
                 WriteObject(chunk, false);
             }
-            if (!_stdoutCompleted)
+            if (!_queueInputCompleted)
+            {
+                WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Wait");
                 _stdoutEvent.WaitOne();
+            }
         }
 
         try
         {
-            task.Wait();
+            outputTask.Wait();
+            exitTask.Wait();
         }
         catch { }
-        var exitCode = task.Result;
+        var exitCode = exitTask.Result;
 
         WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] End [ExitCode = {exitCode}]");
         SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
