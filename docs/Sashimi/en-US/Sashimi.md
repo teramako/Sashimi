@@ -28,7 +28,7 @@ Converts raw byte input into PowerShell strings using the specified text encodin
 
 ### [Invoke-RawCommand](Invoke-RawCommand.md)
 
-Executes a native command and returns its raw byte output without any text encoding or PowerShell string conversion.
+Executes a native command and returns its output as raw bytes or decoded text.
 
 ### [Out-RawFile](Out-RawFile.md)
 

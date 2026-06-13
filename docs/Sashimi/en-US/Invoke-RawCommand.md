@@ -4,7 +4,7 @@ external help file: Sashimi.dll-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: Sashimi
-ms.date: 06/12/2026
+ms.date: 06/13/2026
 PlatyPS schema version: 2024-05-01
 title: Invoke-RawCommand
 ---
@@ -13,7 +13,7 @@ title: Invoke-RawCommand
 
 ## SYNOPSIS
 
-Executes a native command and returns its raw byte output without any text encoding or PowerShell string conversion.
+Executes a native command and returns its output as raw bytes or decoded text.
 
 ## SYNTAX
 
@@ -31,6 +31,20 @@ Invoke-RawCommand [-Script] <scriptblock> [-InputBytes <byte[]>] [-Output <Outpu
  [<CommonParameters>]
 ```
 
+### NormalAsString
+
+```
+Invoke-RawCommand [-Command] <string> [[-Arguments] <string[]>] -AsString [-InputBytes <byte[]>]
+ [-Output <OutputType>] [<CommonParameters>]
+```
+
+### ScriptBlockAsString
+
+```
+Invoke-RawCommand [-Script] <scriptblock> -AsString [-InputBytes <byte[]>] [-Output <OutputType>]
+ [<CommonParameters>]
+```
+
 ## ALIASES
 
 This cmdlet has the following aliases,
@@ -45,6 +59,9 @@ This cmdlet is the foundation of the Sashimi module and enables precise binary�
 
 When a ScriptBlock is provided, only the first statement is analyzed and executed as a native command. This allows natural PowerShell syntax while avoiding unintended ScriptBlock execution semantics.
 
+`Invoke-RawCommand` normally emits raw `byte[]` data with no text encoding or string conversion.
+When the `-AsString` switch is used, the cmdlet decodes the output into a PowerShell string for convenience.
+
 ## EXAMPLES
 
 ### Example 1
@@ -57,6 +74,19 @@ $bytes | ConvertTo-RawString -Encoding Shift_JIS
 ```
 
 This example captures the raw byte output from `wsl.exe` and converts it to a string using an explicit encoding.
+
+### Example 2
+
+Convert Shift_JIS bytes using `iconv` and return the result as a decoded string.
+
+```powershell
+$bytes = ConvertFrom-RawString テスト -Encoding shift_jis
+$string = $bytes | Invoke-RawCommand iconv '-f' shift_jis -AsString
+# same as:
+#        `$bytes | Invoke-RawCommand iconv '-f' shift_jis | ConvertTo-RawString`
+```
+
+This example returns the command output as a decoded string without requiring `ConvertTo-RawString`.
 
 ## PARAMETERS
 
@@ -78,6 +108,43 @@ ParameterSets:
   ValueFromPipeline: false
   ValueFromPipelineByPropertyName: false
   ValueFromRemainingArguments: true
+- Name: NormalAsString
+  Position: 1
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: true
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -AsString
+
+Returns the command output as decoded text instead of raw bytes.
+When this switch is specified, the cmdlet internally decodes the captured `byte[]` stream using the encoding specified by the external process (or UTF‑8 if no encoding can be detected).
+This parameter is intended for convenience when working with commands that reliably produce textual output and do not require byte‑level fidelity.
+
+`-AsString` cannot be used together with `ConvertTo-RawString`, since decoding is performed inside the cmdlet.
+
+```yaml
+Type: System.Management.Automation.SwitchParameter
+DefaultValue: ''
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: NormalAsString
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: ScriptBlockAsString
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
 DontShow: false
 AcceptedValues: []
 HelpMessage: ''
@@ -95,6 +162,12 @@ SupportsWildcards: false
 Aliases: []
 ParameterSets:
 - Name: Normal
+  Position: 0
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: NormalAsString
   Position: 0
   IsRequired: true
   ValueFromPipeline: false
@@ -173,6 +246,12 @@ ParameterSets:
   ValueFromPipeline: false
   ValueFromPipelineByPropertyName: false
   ValueFromRemainingArguments: false
+- Name: ScriptBlockAsString
+  Position: 0
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
 DontShow: false
 AcceptedValues: []
 HelpMessage: ''
@@ -201,6 +280,11 @@ A byte array can be piped to `-InputBytes`. Each array is forwarded as-is to the
 
 The cmdlet outputs raw bytes from the selected output streams (`StdOut`, `StdErr`, or both).
 Each emitted object is a `byte[]` chunk representing data read from the process.
+
+### System.String
+
+Returned when `-AsString` is specified.
+The cmdlet decodes the raw output stream into a PowerShell string using the detected or default encoding.
 
 ## NOTES
 
