@@ -5,10 +5,10 @@ using System.Text;
 
 namespace Sashimi;
 
-[Cmdlet(VerbsData.ConvertTo, "String")]
+[Cmdlet(VerbsData.ConvertTo, "RawString")]
 [OutputType(typeof(string))]
 [Alias("b2a")]
-public sealed class ConvertToStringCommand : Cmdlet
+public sealed class ConvertToRawStringCommand : PSCmdlet
 {
     [Parameter(Mandatory = true, ValueFromPipeline = true)]
     public byte[] InputBytes { get; set; } = null!;
@@ -34,7 +34,7 @@ public sealed class ConvertToStringCommand : Cmdlet
         _server = new(PipeDirection.Out, HandleInheritability.None);
         _client = new(PipeDirection.In, _server.ClientSafePipeHandle);
         var encoding = System.Text.Encoding.GetEncoding(Encoding);
-        WriteVerbose($"[ConvertToString] Set encoding: {encoding.WebName} [{encoding.EncodingName}]");
+        WriteVerbose($"[{MyInvocation.MyCommand.Name}] Set encoding: {encoding.WebName} [{encoding.EncodingName}]");
         _readerTask = Task.Run(() => Decode(_client, encoding));
     }
 
@@ -78,7 +78,7 @@ public sealed class ConvertToStringCommand : Cmdlet
     {
         if (_totalReadBytes > 0)
         {
-            WriteVerbose($"[ConvertTo-String] Read total: {_totalReadBytes}, count: {_readCount}");
+            WriteVerbose($"[{MyInvocation.MyCommand.Name}] Read total: {_totalReadBytes}, count: {_readCount}");
         }
         _server?.Close();
 
@@ -100,7 +100,7 @@ public sealed class ConvertToStringCommand : Cmdlet
 
         if (_lineCount > 0)
         {
-            WriteVerbose($"[ConvertTo-String] Output total line: {_lineCount}");
+            WriteVerbose($"[{MyInvocation.MyCommand.Name}] Output total line: {_lineCount}");
         }
 
         try

@@ -6,10 +6,10 @@ Locale: en-US
 Module Name: Sashimi
 ms.date: 06/12/2026
 PlatyPS schema version: 2024-05-01
-title: ConvertFrom-String
+title: ConvertFrom-RawString
 ---
 
-# ConvertFrom-String
+# ConvertFrom-RawString
 
 ## SYNOPSIS
 
@@ -20,7 +20,7 @@ Converts a PowerShell string into a byte array using the specified text encoding
 ### __AllParameterSets
 
 ```
-ConvertFrom-String [-InputString] <string> [-Encoding <string>] [<CommonParameters>]
+ConvertFrom-RawString [-InputString] <string> [-Encoding <string>] [<CommonParameters>]
 ```
 
 ## ALIASES
@@ -31,8 +31,8 @@ This cmdlet has the following aliases,
 
 ## DESCRIPTION
 
-`ConvertFrom-String` converts a PowerShell `string` into a `byte[]` using the specified encoding.
-This cmdlet is the counterpart of `ConvertTo-String` and is typically used when preparing text for binary‑level pipelines, such as feeding encoded data into `Invoke-RawCommand`.
+`ConvertFrom-RawString` converts a PowerShell `string` into a `byte[]` using the specified encoding.
+This cmdlet is the counterpart of `ConvertTo-RawString` and is typically used when preparing text for binary‑level pipelines, such as feeding encoded data into `Invoke-RawCommand`.
 
 PowerShell normally converts strings to bytes using UTF‑16, but many native tools expect UTF‑8, Shift_JIS, or other encodings. This cmdlet provides explicit control over the encoding used.
 
@@ -43,7 +43,7 @@ PowerShell normally converts strings to bytes using UTF‑16, but many native to
 Convert a string to Shift_JIS bytes.
 
 ```powershell
-"こんにちは" | ConvertFrom-String -Encoding Shift_JIS
+"こんにちは" | ConvertFrom-RawString -Encoding Shift_JIS
 ```
 
 This example produces a `byte[]` representing the Shift_JIS encoding of the input string.
@@ -121,5 +121,5 @@ This cmdlet is intended for precise control of text‑to‑binary conversion, es
 
 ## RELATED LINKS
 
-- [ConvertTo-String](ConvertTo-String.md)
+- [ConvertTo-RawString](ConvertTo-RawString.md)
 - [Invoke-RawCommand](Invoke-RawCommand.md)

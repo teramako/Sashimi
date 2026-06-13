@@ -6,10 +6,10 @@ Locale: en-US
 Module Name: Sashimi
 ms.date: 06/13/2026
 PlatyPS schema version: 2024-05-01
-title: ConvertTo-String
+title: ConvertTo-RawString
 ---
 
-# ConvertTo-String
+# ConvertTo-RawString
 
 ## SYNOPSIS
 
@@ -20,7 +20,7 @@ Converts raw byte input into PowerShell strings using the specified text encodin
 ### __AllParameterSets
 
 ```
-ConvertTo-String -InputBytes <byte[]> [-Encoding <string>] [<CommonParameters>]
+ConvertTo-RawString -InputBytes <byte[]> [-Encoding <string>] [<CommonParameters>]
 ```
 
 ## ALIASES
@@ -31,7 +31,7 @@ This cmdlet has the following aliases,
 
 ## DESCRIPTION
 
-`ConvertTo-String` converts raw `byte[]` input into PowerShell strings using the specified encoding.
+`ConvertTo-RawString` converts raw `byte[]` input into PowerShell strings using the specified encoding.
 Unlike simple `[System.Text.Encoding]::GetString()`, this cmdlet is designed for streaming scenarios:
 it accepts chunked byte arrays and reconstructs text correctly even when multi‑byte characters span
 chunk boundaries.
@@ -48,7 +48,7 @@ Decode Shift_JIS bytes into a PowerShell string.
 
 ```powershell
 $bytes = raw some-command
-$bytes | ConvertTo-String -Encoding Shift_JIS
+$bytes | ConvertTo-RawString -Encoding Shift_JIS
 ```
 
 This example decodes the raw byte output of a native command using Shift_JIS.
@@ -131,5 +131,5 @@ This cmdlet is designed for robust decoding of streamed binary data, including m
 
 ## RELATED LINKS
 
-- [ConvertFrom-String](ConvertFrom-String.md)
+- [ConvertFrom-RawString](ConvertFrom-RawString.md)
 - [Invoke-RawCommand](Invoke-RawCommand.md)

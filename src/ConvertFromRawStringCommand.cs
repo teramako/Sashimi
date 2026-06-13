@@ -1,10 +1,10 @@
 using System.Management.Automation;
 using System.Text;
 
-[Cmdlet(VerbsData.ConvertFrom, "String")]
+[Cmdlet(VerbsData.ConvertFrom, "RawString")]
 [OutputType(typeof(byte[]))]
 [Alias("a2b")]
-public sealed class ConvertFromStringComand : Cmdlet
+public sealed class ConvertFromRawStringComand : PSCmdlet
 {
     [Parameter(Mandatory = true, ValueFromPipeline = true, Position = 0)]
     public string InputString { get; set; } = null!;
@@ -21,7 +21,7 @@ public sealed class ConvertFromStringComand : Cmdlet
     protected override void BeginProcessing()
     {
         _encoding = System.Text.Encoding.GetEncoding(Encoding);
-        WriteVerbose($"[ConvertFrom-String] Set encoding: {_encoding.BodyName} [{_encoding.EncodingName}]");
+        WriteVerbose($"[{MyInvocation.MyCommand.Name}] Set encoding: {_encoding.BodyName} [{_encoding.EncodingName}]");
     }
 
     protected override void ProcessRecord()
@@ -35,6 +35,6 @@ public sealed class ConvertFromStringComand : Cmdlet
 
     protected override void EndProcessing()
     {
-        WriteVerbose($"[ConvertFrom-String] Output total: {_totalWriteBytes}, count: {_writeCount}");
+        WriteVerbose($"[{MyInvocation.MyCommand.Name}] Output total: {_totalWriteBytes}, count: {_writeCount}");
     }
 }

@@ -18,11 +18,11 @@ Raw process I/O for PowerShell — execute external commands and handle stdin/st
 
 ## Sashimi
 
-### [ConvertFrom-String](ConvertFrom-String.md)
+### [ConvertFrom-RawString](ConvertFrom-RawString.md)
 
 Converts a PowerShell string into a byte array using the specified text encoding.
 
-### [ConvertTo-String](ConvertTo-String.md)
+### [ConvertTo-RawString](ConvertTo-RawString.md)
 
 Converts raw byte input into PowerShell strings using the specified text encoding.
 
