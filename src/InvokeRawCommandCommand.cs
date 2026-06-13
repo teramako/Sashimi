@@ -1,6 +1,9 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.IO.Pipes;
 using System.Management.Automation;
 using System.Management.Automation.Language;
+using System.Text;
 
 namespace Sashimi;
 
@@ -19,14 +22,19 @@ public class InvokeRawCommandCommand : PSCmdlet
 {
     private const string NormalParameterSet = "Normal";
     private const string ScriptBlockParameterSet = "ScriptBlock";
+    private const string NormalAsStringParameterSet = "NormalAsString";
+    private const string ScriptBlockAsStringParameterSet = "ScriptBlockAsString";
 
     [Parameter(ParameterSetName = NormalParameterSet, Mandatory = true, Position = 0)]
+    [Parameter(ParameterSetName = NormalAsStringParameterSet, Mandatory = true, Position = 0)]
     public string Command { get; set; } = null!;
 
     [Parameter(ParameterSetName = NormalParameterSet, ValueFromRemainingArguments = true, Position = 1)]
+    [Parameter(ParameterSetName = NormalAsStringParameterSet, ValueFromRemainingArguments = true, Position = 1)]
     public string[] Arguments { get; set; } = [];
 
     [Parameter(ParameterSetName = ScriptBlockParameterSet, Mandatory = true, Position = 0)]
+    [Parameter(ParameterSetName = ScriptBlockAsStringParameterSet, Mandatory = true, Position = 0)]
     public ScriptBlock Script { get; set; } = null!;
 
     [Parameter(ValueFromPipeline = true)]
@@ -34,6 +42,10 @@ public class InvokeRawCommandCommand : PSCmdlet
 
     [Parameter()]
     public OutputType Output { get; set; } = OutputType.Stdout;
+
+    [Parameter(ParameterSetName = NormalAsStringParameterSet, Mandatory = true)]
+    [Parameter(ParameterSetName = ScriptBlockAsStringParameterSet, Mandatory = true)]
+    public SwitchParameter AsString { get; set; }
 
     private RawProcessRunner _processRunner = null!;
 
@@ -44,23 +56,92 @@ public class InvokeRawCommandCommand : PSCmdlet
     private long _totalReadBytes;
     private int _readCount;
 
+    private AnonymousPipeServerStream? _stringServer;
+    private AnonymousPipeClientStream? _stringClient;
+    private Task? _stringReaderTask;
+    private readonly ConcurrentQueue<string> _stringQueue = [];
+    private readonly AutoResetEvent _stringQueueEvent = new(false);
+    private volatile bool _readerCompleted = false;
+
+    [Conditional("DEBUG")]
+    private void PrintDebug(ReadOnlySpan<char> msg)
+    {
+        Console.ForegroundColor = ConsoleColor.DarkMagenta;
+        Console.Error.WriteLine($"[{MyInvocation.MyCommand.Name}] {msg}");
+        Console.ResetColor();
+    }
+
     private void OnOutputChunk(byte[] chunk)
     {
         _stdoutQueue.Enqueue(chunk);
         _stdoutEvent.Set();
     }
 
+    private void OnOutputChunkAsString(byte[] chunk)
+    {
+        if (chunk.Length > 0 && _stringServer is not null)
+        {
+            _stringServer.Write(chunk, 0, chunk.Length);
+            PrintDebug($"Write {chunk.Length} bytes to stringServer");
+            _stringServer.Flush();
+        }
+    }
+
+    private async Task AsyncDecode(Stream stream, Encoding encoding)
+    {
+        using var sr = new StreamReader(stream, encoding);
+        while (true)
+        {
+            string? line = await sr.ReadLineAsync();
+            if (line is null)
+                break;
+
+            _stringQueue.Enqueue(line);
+            PrintDebug("Set stringQueueEvent");
+            _stringQueueEvent.Set();
+        }
+
+        var rest = await sr.ReadToEndAsync();
+        if (rest is not null)
+        {
+            _stringQueue.Enqueue(rest);
+        }
+        PrintDebug("Complete stringReader");
+        _readerCompleted = true;
+        PrintDebug("Set stringQueueEvent (final)");
+        _stringQueueEvent.Set();
+    }
+
     protected override void BeginProcessing()
     {
         var cmdInfo = GetCommandAndArguments();
         _processRunner = new RawProcessRunner(cmdInfo.Path, cmdInfo.Arguments);
-        if (Output.HasFlag(OutputType.Stdout))
+
+        if (AsString)
         {
-            _processRunner.OnStdout += OnOutputChunk;
+            _stringServer = new(PipeDirection.Out, HandleInheritability.None);
+            _stringClient = new(PipeDirection.In, _stringServer.ClientSafePipeHandle);
+            if (Output.HasFlag(OutputType.Stdout))
+            {
+                _processRunner.OnStdout += OnOutputChunkAsString;
+            }
+            if (Output.HasFlag(OutputType.Stderr))
+            {
+                _processRunner.OnStderr += OnOutputChunkAsString;
+            }
+            WriteVerbose($"[{MyInvocation.MyCommand.Name}] Set encoding: UTF-8");
+            _stringReaderTask = AsyncDecode(_stringClient, Encoding.UTF8);
         }
-        if (Output.HasFlag(OutputType.Stderr))
+        else
         {
-            _processRunner.OnStderr += OnOutputChunk;
+            if (Output.HasFlag(OutputType.Stdout))
+            {
+                _processRunner.OnStdout += OnOutputChunk;
+            }
+            if (Output.HasFlag(OutputType.Stderr))
+            {
+                _processRunner.OnStderr += OnOutputChunk;
+            }
         }
         _processRunner.StartAsync().Wait();
         WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Started process with arguments: [{string.Join(", ", _processRunner.Arguments)}]");
@@ -81,6 +162,8 @@ public class InvokeRawCommandCommand : PSCmdlet
     {
         WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Stopping process");
         _processRunner.Kill();
+        _stringServer?.Dispose();
+        _stringClient?.Dispose();
     }
 
     protected override void EndProcessing()
@@ -94,36 +177,69 @@ public class InvokeRawCommandCommand : PSCmdlet
         var exitTask = _processRunner.WaitForExitAsync();
         var outputTask = Task.Run(() =>
         {
+            PrintDebug($"Wait process runner's output to finish");
             _processRunner.WaitOutput();
+            _stringServer?.Close();
+            PrintDebug("Complete queueInput");
             _queueInputCompleted = true;
+            PrintDebug("Set stdoutEvent (final)");
             _stdoutEvent.Set();
         });
 
-        long totalWriteBytes = 0;
-        int writeCount = 0;
-        while (!_queueInputCompleted || !_stdoutQueue.IsEmpty)
+        if (AsString)
         {
-            while (_stdoutQueue.TryDequeue(out var chunk))
+            int lineCount = 0;
+            while (!_readerCompleted || !_stringQueue.IsEmpty)
             {
-                totalWriteBytes += chunk.Length;
-                writeCount++;
-                WriteInformation($"[{_processRunner.Pid}][{_processRunner.Name}] Output chunk: {chunk.Length} bytes", ["Sashimi.Raw.OutputChunk"]);
-                WriteObject(chunk, false);
+                while (_stringQueue.TryDequeue(out var line))
+                {
+                    lineCount++;
+                    WriteInformation($"Output line: [{lineCount}] {line}", ["Sashimi.Raw.OutputLine"]);
+                    WriteObject(line);
+                }
+
+                if (!_readerCompleted)
+                {
+                    WriteInformation("Wait", ["Sashimi.Raw.Wait"]);
+                    PrintDebug("Wait for stringQueueEvent");
+                    _stringQueueEvent.WaitOne();
+                }
             }
-            if (!_queueInputCompleted)
+
+            if (lineCount > 0)
             {
-                WriteInformation($"[{_processRunner.Pid}][{_processRunner.Name}] Wait", ["Sashimi.Raw.Wait"]);
-                _stdoutEvent.WaitOne();
+                WriteVerbose($"[{MyInvocation.MyCommand.Name}] Output total line: {lineCount}");
             }
         }
-
-        if (totalWriteBytes > 0)
+        else
         {
-            WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Output total: {totalWriteBytes}, count: {writeCount}");
+            long totalWriteBytes = 0;
+            int writeCount = 0;
+            while (!_queueInputCompleted || !_stdoutQueue.IsEmpty)
+            {
+                while (_stdoutQueue.TryDequeue(out var chunk))
+                {
+                    totalWriteBytes += chunk.Length;
+                    writeCount++;
+                    WriteInformation($"[{_processRunner.Pid}][{_processRunner.Name}] Output chunk: {chunk.Length} bytes", ["Sashimi.Raw.OutputChunk"]);
+                    WriteObject(chunk, false);
+                }
+                if (!_queueInputCompleted)
+                {
+                    WriteInformation($"[{_processRunner.Pid}][{_processRunner.Name}] Wait", ["Sashimi.Raw.Wait"]);
+                    _stdoutEvent.WaitOne();
+                }
+            }
+
+            if (totalWriteBytes > 0)
+            {
+                WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Output total: {totalWriteBytes}, count: {writeCount}");
+            }
         }
 
         try
         {
+            _stringReaderTask?.Wait();
             outputTask.Wait();
             exitTask.Wait();
         }
