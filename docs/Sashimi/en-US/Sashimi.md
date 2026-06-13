@@ -24,7 +24,7 @@ Converts a PowerShell string into a byte array using the specified text encoding
 
 ### [ConvertTo-String](ConvertTo-String.md)
 
-Converts raw byte input into a PowerShell string using the specified text encoding.
+Converts raw byte input into PowerShell strings using the specified text encoding.
 
 ### [Invoke-RawCommand](Invoke-RawCommand.md)
 

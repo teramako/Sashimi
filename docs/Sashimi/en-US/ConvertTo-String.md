@@ -4,7 +4,7 @@ external help file: Sashimi.dll-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: Sashimi
-ms.date: 06/12/2026
+ms.date: 06/13/2026
 PlatyPS schema version: 2024-05-01
 title: ConvertTo-String
 ---
@@ -13,7 +13,7 @@ title: ConvertTo-String
 
 ## SYNOPSIS
 
-Converts raw byte input into a PowerShell string using the specified text encoding.
+Converts raw byte input into PowerShell strings using the specified text encoding.
 
 ## SYNTAX
 
@@ -31,10 +31,14 @@ This cmdlet has the following aliases,
 
 ## DESCRIPTION
 
-`ConvertTo-String` converts raw `byte[]` input into a PowerShell string using the specified encoding.
-Unlike simple `[System.Text.Encoding]::GetString()`, this cmdlet is designed for streaming scenarios: it accepts chunked byte arrays and reconstructs text correctly even when multi‑byte characters span chunk boundaries.
+`ConvertTo-String` converts raw `byte[]` input into PowerShell strings using the specified encoding.
+Unlike simple `[System.Text.Encoding]::GetString()`, this cmdlet is designed for streaming scenarios:
+it accepts chunked byte arrays and reconstructs text correctly even when multi‑byte characters span
+chunk boundaries.
 
-This makes it suitable for decoding output from `Invoke-RawCommand`, which emits raw byte chunks from native processes.
+The cmdlet emits output **one line at a time**, matching PowerShell's line‑oriented pipeline model.
+This makes it suitable for decoding output from `Invoke-RawCommand`, which emits raw byte chunks
+from native processes.
 
 ## EXAMPLES
 
