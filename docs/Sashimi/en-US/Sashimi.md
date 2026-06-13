@@ -5,7 +5,7 @@ HelpInfoUri:
 Locale: en-US
 Module Guid: 45b865bc-8ff9-4932-899f-26f7554472ff
 Module Name: Sashimi
-ms.date: 06/12/2026
+ms.date: 06/13/2026
 PlatyPS schema version: 2024-05-01
 title: Sashimi Module
 ---
@@ -29,4 +29,8 @@ Converts raw byte input into a PowerShell string using the specified text encodi
 ### [Invoke-RawCommand](Invoke-RawCommand.md)
 
 Executes a native command and returns its raw byte output without any text encoding or PowerShell string conversion.
+
+### [Out-RawFile](Out-RawFile.md)
+
+Writes raw byte input to a file without any text encoding or transformation.
 
