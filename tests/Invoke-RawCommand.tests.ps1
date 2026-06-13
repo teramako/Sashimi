@@ -67,7 +67,7 @@ Describe 'Invoke-RawCommand' {
     Context 'Large output' {
         It 'reads 100000 lines without loss' {
             $script = Join-Path -Path $PSScriptRoot -ChildPath 'assets', 'seq100000.sh'
-            $result = Invoke-RawCommand $script | ConvertTo-String
+            $result = Invoke-RawCommand $script -Verbose | ConvertTo-String
             $result.Count | Should -Be 100000
         }
     }
