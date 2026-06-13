@@ -43,8 +43,6 @@ public class InvokeRawCommandCommand : PSCmdlet
 
     private long _totalReadBytes;
     private int _readCount;
-    private long _totalWriteBytes;
-    private int _writeCount;
 
     private void OnOutputChunk(byte[] chunk)
     {
@@ -101,12 +99,14 @@ public class InvokeRawCommandCommand : PSCmdlet
             _stdoutEvent.Set();
         });
 
+        long totalWriteBytes = 0;
+        int writeCount = 0;
         while (!_queueInputCompleted || !_stdoutQueue.IsEmpty)
         {
             while (_stdoutQueue.TryDequeue(out var chunk))
             {
-                _totalWriteBytes += chunk.Length;
-                _writeCount++;
+                totalWriteBytes += chunk.Length;
+                writeCount++;
                 WriteInformation($"[{_processRunner.Pid}][{_processRunner.Name}] Output chunk: {chunk.Length} bytes", ["Sashimi.Raw.OutputChunk"]);
                 WriteObject(chunk, false);
             }
@@ -117,9 +117,9 @@ public class InvokeRawCommandCommand : PSCmdlet
             }
         }
 
-        if (_totalWriteBytes > 0)
+        if (totalWriteBytes > 0)
         {
-            WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Output total: {_totalWriteBytes}, count: {_writeCount}");
+            WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Output total: {totalWriteBytes}, count: {writeCount}");
         }
 
         try

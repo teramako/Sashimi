@@ -27,7 +27,6 @@ public sealed class ConvertToRawStringCommand : PSCmdlet
 
     private long _totalReadBytes;
     private int _readCount;
-    private int _lineCount;
 
     protected override void BeginProcessing()
     {
@@ -82,12 +81,13 @@ public sealed class ConvertToRawStringCommand : PSCmdlet
         }
         _server?.Close();
 
+        int lineCount = 0;
         while (!_readerCompleted || !_queue.IsEmpty)
         {
             while (_queue.TryDequeue(out var line))
             {
-                _lineCount++;
-                WriteInformation($"Output line: [{_lineCount}] {line}", ["Sashimi.Raw.OutputLine"]);
+                lineCount++;
+                WriteInformation($"Output line: [{lineCount}] {line}", ["Sashimi.Raw.OutputLine"]);
                 WriteObject(line);
             }
 
@@ -98,9 +98,9 @@ public sealed class ConvertToRawStringCommand : PSCmdlet
             }
         }
 
-        if (_lineCount > 0)
+        if (lineCount > 0)
         {
-            WriteVerbose($"[{MyInvocation.MyCommand.Name}] Output total line: {_lineCount}");
+            WriteVerbose($"[{MyInvocation.MyCommand.Name}] Output total line: {lineCount}");
         }
 
         try
