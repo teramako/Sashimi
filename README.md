@@ -15,6 +15,7 @@ Sashimi provides commands that communicate with external processes at the byte-s
 | `Invoke-RawCommand`  | `raw` | Execute a native command and output its StdOut/StdErr (or both) as `byte[]`. |
 | `ConvertFrom-String` | `a2b` | Convert a `string` into a byte sequence. |
 | `ConvertTo-String`   | `b2a` | Convert a byte sequence into a `string`. |
+| `Out-RawFile`        | `bout` | Write byte sequences into a file. |
 
 ## 🗺️ Roadmap
 
