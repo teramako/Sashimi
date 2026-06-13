@@ -17,7 +17,8 @@ public enum OutputType
 
 [Cmdlet(VerbsLifecycle.Invoke, "RawCommand", DefaultParameterSetName = NormalParameterSet)]
 [Alias("raw")]
-[OutputType(typeof(byte[]))]
+[OutputType(typeof(byte[]), ParameterSetName = [NormalParameterSet, ScriptBlockParameterSet])]
+[OutputType(typeof(string), ParameterSetName = [NormalAsStringParameterSet, ScriptBlockAsStringParameterSet])]
 public class InvokeRawCommandCommand : PSCmdlet
 {
     private const string NormalParameterSet = "Normal";
