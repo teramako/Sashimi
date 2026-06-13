@@ -10,7 +10,7 @@ Describe 'Out-RawFile' {
             $text = 'abc'
             $bytes = [System.Text.Encoding]::UTF8.GetBytes($text)
 
-            ConvertFrom-String 'abc' | Out-RawFile -Path $filePath -Verbose
+            ConvertFrom-RawString 'abc' | Out-RawFile -Path $filePath -Verbose
 
             $file = Get-Item $filePath
             $file.Exists | Should -BeTrue
@@ -22,8 +22,8 @@ Describe 'Out-RawFile' {
             $text1 = 'abc'
             $text2 = 'def'
 
-            ConvertFrom-String $text1 | Out-RawFile -Path $filePath -Verbose
-            ConvertFrom-String $text2 | Out-RawFile -Path $filePath -Verbose
+            ConvertFrom-RawString $text1 | Out-RawFile -Path $filePath -Verbose
+            ConvertFrom-RawString $text2 | Out-RawFile -Path $filePath -Verbose
 
             Get-Content $filePath | Should -Be $text2
         }
@@ -33,8 +33,8 @@ Describe 'Out-RawFile' {
             $text1 = 'abc'
             $text2 = 'def'
 
-            ConvertFrom-String $text1 | Out-RawFile -Path $filePath -Verbose
-            ConvertFrom-String $text2 | Out-RawFile -Path $filePath -Append -Verbose
+            ConvertFrom-RawString $text1 | Out-RawFile -Path $filePath -Verbose
+            ConvertFrom-RawString $text2 | Out-RawFile -Path $filePath -Append -Verbose
 
             Get-Content $filePath | Should -Be ($text1 + $text2)
         }
@@ -44,11 +44,11 @@ Describe 'Out-RawFile' {
             $text1 = 'abc'
             $text2 = 'def'
 
-            $result1 = ConvertFrom-String $text1 | Out-RawFile -Path $filePath -PassThru -Verbose
-            $result2 = ConvertFrom-String $text2 | Out-RawFile -Path $filePath -Append -PassThru -Verbose
+            $result1 = ConvertFrom-RawString $text1 | Out-RawFile -Path $filePath -PassThru -Verbose
+            $result2 = ConvertFrom-RawString $text2 | Out-RawFile -Path $filePath -Append -PassThru -Verbose
 
-            $result1 | ConvertTo-String | Should -Be $text1
-            $result2 | ConvertTo-String | Should -Be $text2
+            $result1 | ConvertTo-RawString | Should -Be $text1
+            $result2 | ConvertTo-RawString | Should -Be $text2
         }
 
         It 'Large output' {

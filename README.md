@@ -10,12 +10,12 @@ Sashimi provides commands that communicate with external processes at the byte-s
 
 ## ✨ Commands
 
-| Name                 | Alias  | Description |
-|:---------------------|:-------|:------------|
-| `Invoke-RawCommand`  | `raw`  | Execute a native command and output its StdOut/StdErr (or both) as `byte[]`. |
-| `ConvertFrom-String` | `a2b`  | Convert a `string` into a byte sequence. |
-| `ConvertTo-String`   | `b2a`  | Converts byte sequences to `string`s, one line at a time. |
-| `Out-RawFile`        | `bout` | Write byte sequences into a file. |
+| Name                    | Alias  | Description |
+|:------------------------|:-------|:------------|
+| `Invoke-RawCommand`     | `raw`  | Execute a native command and output its StdOut/StdErr (or both) as `byte[]`. |
+| `ConvertFrom-RawString` | `a2b`  | Convert a `string` into a byte sequence. |
+| `ConvertTo-RawString`   | `b2a`  | Converts byte sequences to `string`s, one line at a time. |
+| `Out-RawFile`           | `bout` | Write byte sequences into a file. |
 
 ## 🗺️ Roadmap
 
@@ -23,7 +23,7 @@ Sashimi provides commands that communicate with external processes at the byte-s
 - [ ] Stabilize `RawProcessRunner` API (async I/O, exit code, cancellation)
 - [ ] Finalize `raw` command UX and parameter behavior
 - [ ] Support ScriptBlock with “first statement only” execution rule
-- [ ] Implement `ConvertTo-String` / `ConvertFrom-String` for encoding transforms
+- [ ] Implement `ConvertTo-RawString` / `ConvertFrom-RawString` for encoding transforms
 - [ ] Ensure consistent byte[] pipeline behavior across platforms
 - [ ] Document core usage and module structure
 

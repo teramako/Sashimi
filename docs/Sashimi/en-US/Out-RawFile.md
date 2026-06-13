@@ -37,7 +37,7 @@ Out-RawFile [-Path] <string> -InputBytes <byte[]> -PassThru [-Append]
 
 `Out-RawFile` writes raw `byte[]` data directly to a file.
 No text encoding, newline normalization, or PowerShell string conversion is applied.
-This cmdlet is the counterpart to `Get-Content -AsByteStream` and is designed for binary‑safe pipelines, especially when used with `Invoke-RawCommand`, `ConvertFrom-String`, and `ConvertTo-String`.
+This cmdlet is the counterpart to `Get-Content -AsByteStream` and is designed for binary‑safe pipelines, especially when used with `Invoke-RawCommand`, `ConvertFrom-RawString`, and `ConvertTo-RawString`.
 
 When `-Append` is specified, data is added to the end of the file.
 When `-PassThru` is used, the written bytes are emitted back to the pipeline, enabling tee‑like scenarios.
@@ -179,6 +179,6 @@ It is optimized for streaming scenarios and large binary data.
 ## RELATED LINKS
 
 * [Invoke-RawCommand](Invoke-RawCommand.md)
-* [ConvertFrom-String](ConvertFrom-String.md)
-* [ConvertTo-String](ConvertTo-String.md)
+* [ConvertFrom-RawString](ConvertFrom-RawString.md)
+* [ConvertTo-RawString](ConvertTo-RawString.md)
 

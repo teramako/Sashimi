@@ -53,7 +53,7 @@ Run a command and decode its Shift_JIS output manually.
 
 ```powershell
 $bytes = raw wsl.exe --list
-$bytes | ConvertTo-String -Encoding Shift_JIS
+$bytes | ConvertTo-RawString -Encoding Shift_JIS
 ```
 
 This example captures the raw byte output from `wsl.exe` and converts it to a string using an explicit encoding.
@@ -208,5 +208,5 @@ This cmdlet bypasses all PowerShell text processing and is intended for scenario
 
 ## RELATED LINKS
 
-- [ConvertFrom-String](ConvertFrom-String.md)
-- [ConvertTo-String](ConvertTo-String.md)
+- [ConvertFrom-RawString](ConvertFrom-RawString.md)
+- [ConvertTo-RawString](ConvertTo-RawString.md)
