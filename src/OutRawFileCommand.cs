@@ -5,6 +5,7 @@ namespace Sashimi;
 [Cmdlet(VerbsData.Out, "RawFile", DefaultParameterSetName = "Default")]
 [OutputType(typeof(void))]
 [OutputType(typeof(byte[]), ParameterSetName = ["PassThru"])]
+[Alias("bout")]
 public sealed class OutRawFileCommand : PSCmdlet
 {
     [Parameter(Mandatory = true, Position = 0)]
