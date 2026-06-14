@@ -11,7 +11,7 @@ public enum OutputType
 {
     Stdout = 1,
     Stderr = 2,
-    All = Stdout | Stderr
+    Both = Stdout | Stderr
 }
 
 [Cmdlet(VerbsLifecycle.Invoke, "RawCommand", DefaultParameterSetName = NormalParameterSet)]
