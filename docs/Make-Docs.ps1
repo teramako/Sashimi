@@ -47,6 +47,7 @@ foreach ($cmdlet in $Cmdlets) {
 if ($resultFiles.Count -gt 0) {
     $cmdHelps = Import-MarkdownCommandHelp -Path $resultFiles
     $indexFile = New-MarkdownModuleFile -CommandHelp $cmdHelps -OutputFolder $PSScriptRoot -Locale $Locale -Encoding utf8NoBOM
-    Move-Item -Path $indexFile -Destination $OutputDir -Force -Verbose
+    $destFile = Join-Path -Path $OutputDir -ChildPath 'README.md'
+    Move-Item -Path $indexFile -Destination $destFile -Force -Verbose
 }
 
