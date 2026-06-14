@@ -34,4 +34,28 @@ Describe 'ConvertFrom-RawString' {
             CompareBytes -Expected $expected -Actual $result
         }
     }
+    Context 'Input of an array of strings' {
+        BeforeAll {
+            $script:testItems = @("a", "b")
+        }
+
+        It 'Non Delimiter' {
+            $expected = [System.Text.Encoding]::UTF8.GetBytes(($testItems -join ""))
+
+            $result = $testItems | ConvertFrom-RawString | ForEach-Object { $_ }
+
+            CompareBytes -Expected $expected -Actual $result
+        }
+
+        It 'Delimiter <name>' -ForEach @(
+            @{ name = 'LF'; delimiter = "`n" }
+            @{ name = 'Comma'; delimiter = ',' }
+        ) {
+            $expected = [System.Text.Encoding]::UTF8.GetBytes(($testItems -join $delimiter))
+
+            $result = $testItems | ConvertFrom-RawString -Delimiter $delimiter | ForEach-Object { $_ }
+
+            CompareBytes -Expected $expected -Actual $result
+        }
+    }
 }
