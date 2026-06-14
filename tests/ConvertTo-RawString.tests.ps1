@@ -46,5 +46,15 @@ Describe 'ConvertTo-RawString' {
                 Should -BeExactly $lines[$i] -ActualValue $results[$i]
             }
         }
+
+        It '-Raw mode (<name>)' -ForEach @(
+            @{ name = "CR"; delimiter = "`r" },
+            @{ name = "LF"; delimiter = "`n" },
+            @{ name = "CRLF"; delimiter = "`r`n" }
+        ) {
+            $expected = $lines -join $delimiter
+            $bytes = ConvertFrom-RawString $expected -Encoding $encoding
+            $bytes | ConvertTo-RawString -Encoding $encoding -Raw | Should -BeExactly $expected
+        }
     }
 }
