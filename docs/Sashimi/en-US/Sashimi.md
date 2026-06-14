@@ -5,7 +5,7 @@ HelpInfoUri:
 Locale: en-US
 Module Guid: 45b865bc-8ff9-4932-899f-26f7554472ff
 Module Name: Sashimi
-ms.date: 06/13/2026
+ms.date: 06/14/2026
 PlatyPS schema version: 2024-05-01
 title: Sashimi Module
 ---
@@ -20,7 +20,7 @@ Raw process I/O for PowerShell — execute external commands and handle stdin/st
 
 ### [ConvertFrom-RawString](ConvertFrom-RawString.md)
 
-Converts a PowerShell string into a byte array using the specified text encoding.
+Converts one or more PowerShell strings into byte arrays using the specified encoding, optionally inserting a delimiter between pipeline inputs.
 
 ### [ConvertTo-RawString](ConvertTo-RawString.md)
 
