@@ -10,21 +10,22 @@ Sashimi provides commands that communicate with external processes at the byte-s
 
 ## ✨ Commands
 
-| Name                 | Alias | Description |
-|:---------------------|:------|:------------|
-| `Invoke-RawCommand`  | `raw` | Execute a native command and output its StdOut/StdErr (or both) as `byte[]`. |
-| `ConvertFrom-String` | `a2b` | Convert a `string` into a byte sequence. |
-| `ConvertTo-String`   | `b2a` | Convert a byte sequence into a `string`. |
+| Name                    | Alias  | Description |
+|:------------------------|:-------|:------------|
+| `Invoke-RawCommand`     | `raw`  | Execute a native command and output its StdOut/StdErr as raw `byte[]` or decoded text (`-AsString`). |
+| `ConvertFrom-RawString` | `a2b`  | Convert a `string` into a byte sequence. |
+| `ConvertTo-RawString`   | `b2a`  | Converts byte sequences to `string`s, one line at a time. |
+| `Out-RawFile`           | `bout` | Write byte sequences into a file. |
 
 ## 🗺️ Roadmap
 
 ### Version 1.0 — Core foundation
-- [ ] Stabilize `RawProcessRunner` API (async I/O, exit code, cancellation)
-- [ ] Finalize `raw` command UX and parameter behavior
-- [ ] Support ScriptBlock with “first statement only” execution rule
-- [ ] Implement `ConvertTo-String` / `ConvertFrom-String` for encoding transforms
-- [ ] Ensure consistent byte[] pipeline behavior across platforms
-- [ ] Document core usage and module structure
+- [x] Stabilize `RawProcessRunner` API (async I/O, exit code, cancellation)
+- [x] Finalize `raw` command UX and parameter behavior
+- [x] Support ScriptBlock with “first statement only” execution rule
+- [x] Implement `ConvertTo-RawString` / `ConvertFrom-RawString` for encoding transforms
+- [x] Ensure consistent byte[] pipeline behavior across platforms
+- [x] Document core usage and module structure
 
 ### Version 2.0 — Pipeline integration
 - [ ] Introduce internal `rawInternal` command (not exported)
