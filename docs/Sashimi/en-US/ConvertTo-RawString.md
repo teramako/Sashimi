@@ -20,7 +20,7 @@ Converts raw byte input into PowerShell strings using the specified encoding, op
 ### __AllParameterSets
 
 ```
-ConvertTo-RawString -InputBytes <byte[]> [-Encoding <string>] [-Raw] [<CommonParameters>]
+ConvertTo-RawString [-InputBytes] <byte[]> [-Encoding <string>] [-Raw] [<CommonParameters>]
 ```
 
 ## ALIASES
@@ -104,7 +104,7 @@ SupportsWildcards: false
 Aliases: []
 ParameterSets:
 - Name: (All)
-  Position: Named
+  Position: 0
   IsRequired: true
   ValueFromPipeline: true
   ValueFromPipelineByPropertyName: false
@@ -123,7 +123,8 @@ When this switch is specified, the cmdlet disables line‑oriented processing an
 Type: System.Management.Automation.SwitchParameter
 DefaultValue: ''
 SupportsWildcards: false
-Aliases: []
+Aliases:
+- r
 ParameterSets:
 - Name: (All)
   Position: Named

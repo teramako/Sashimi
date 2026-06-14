@@ -4,7 +4,7 @@ external help file: Sashimi.dll-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: Sashimi
-ms.date: 06/13/2026
+ms.date: 06/14/2026
 PlatyPS schema version: 2024-05-01
 title: Invoke-RawCommand
 ---
@@ -49,6 +49,7 @@ Invoke-RawCommand [-Script] <scriptblock> -AsString [-InputBytes <byte[]>] [-Out
 
 This cmdlet has the following aliases,
 - `raw`
+
 
 ## DESCRIPTION
 
@@ -131,7 +132,8 @@ This parameter is intended for convenience when working with commands that relia
 Type: System.Management.Automation.SwitchParameter
 DefaultValue: ''
 SupportsWildcards: false
-Aliases: []
+Aliases:
+- s
 ParameterSets:
 - Name: NormalAsString
   Position: Named
@@ -210,7 +212,8 @@ The selected streams are emitted as raw `byte[]` chunks.
 Type: Sashimi.OutputType
 DefaultValue: ''
 SupportsWildcards: false
-Aliases: []
+Aliases:
+- o
 ParameterSets:
 - Name: (All)
   Position: Named

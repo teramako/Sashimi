@@ -41,10 +41,12 @@ public class InvokeRawCommandCommand : RawCommandBase
     public byte[]? InputBytes { get; set; }
 
     [Parameter()]
+    [Alias("o")]
     public OutputType Output { get; set; } = OutputType.Stdout;
 
     [Parameter(ParameterSetName = NormalAsStringParameterSet, Mandatory = true)]
     [Parameter(ParameterSetName = ScriptBlockAsStringParameterSet, Mandatory = true)]
+    [Alias("s")]
     public SwitchParameter AsString { get; set; }
 
     private RawProcessRunner _processRunner = null!;

@@ -15,9 +15,11 @@ public sealed class OutRawFileCommand : RawCommandBase
     public byte[] InputBytes { get; set; } = null!;
 
     [Parameter()]
+    [Alias("a")]
     public SwitchParameter Append { get; set; }
 
     [Parameter(ParameterSetName = "PassThru", Mandatory = true)]
+    [Alias("p")]
     public SwitchParameter PassThru { get; set; }
 
     private FileStream? _fs;

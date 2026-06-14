@@ -8,7 +8,7 @@ namespace Sashimi;
 [Alias("b2a")]
 public sealed class ConvertToRawStringCommand : RawCommandBase
 {
-    [Parameter(Mandatory = true, ValueFromPipeline = true)]
+    [Parameter(Mandatory = true, ValueFromPipeline = true, Position = 0)]
     public byte[] InputBytes { get; set; } = null!;
 
     [Parameter()]
@@ -16,6 +16,7 @@ public sealed class ConvertToRawStringCommand : RawCommandBase
     public string Encoding { get; set; } = "utf-8";
 
     [Parameter()]
+    [Alias("r")]
     public SwitchParameter Raw { get; set; }
 
     private long _totalReadBytes;

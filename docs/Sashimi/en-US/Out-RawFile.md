@@ -66,7 +66,8 @@ If the file does not exist, it is created.
 Type: System.Management.Automation.SwitchParameter
 DefaultValue: ''
 SupportsWildcards: false
-Aliases: []
+Aliases:
+- a
 ParameterSets:
 - Name: (All)
   Position: Named
@@ -110,7 +111,8 @@ This is useful for chaining additional processing or for tee‑style workflows.
 Type: System.Management.Automation.SwitchParameter
 DefaultValue: ''
 SupportsWildcards: false
-Aliases: []
+Aliases:
+- p
 ParameterSets:
 - Name: PassThru
   Position: Named
