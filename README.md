@@ -20,12 +20,12 @@ Sashimi provides commands that communicate with external processes at the byte-s
 ## 🗺️ Roadmap
 
 ### Version 1.0 — Core foundation
-- [ ] Stabilize `RawProcessRunner` API (async I/O, exit code, cancellation)
-- [ ] Finalize `raw` command UX and parameter behavior
-- [ ] Support ScriptBlock with “first statement only” execution rule
-- [ ] Implement `ConvertTo-RawString` / `ConvertFrom-RawString` for encoding transforms
-- [ ] Ensure consistent byte[] pipeline behavior across platforms
-- [ ] Document core usage and module structure
+- [x] Stabilize `RawProcessRunner` API (async I/O, exit code, cancellation)
+- [x] Finalize `raw` command UX and parameter behavior
+- [x] Support ScriptBlock with “first statement only” execution rule
+- [x] Implement `ConvertTo-RawString` / `ConvertFrom-RawString` for encoding transforms
+- [x] Ensure consistent byte[] pipeline behavior across platforms
+- [x] Document core usage and module structure
 
 ### Version 2.0 — Pipeline integration
 - [ ] Introduce internal `rawInternal` command (not exported)
