@@ -9,6 +9,7 @@ namespace Sashimi;
 public sealed class ConvertFromRawStringComand : RawCommandBase
 {
     [Parameter(Mandatory = true, ValueFromPipeline = true, Position = 0)]
+    [AllowEmptyString]
     public string InputString { get; set; } = null!;
 
     [Parameter()]
