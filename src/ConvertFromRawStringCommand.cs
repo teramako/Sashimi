@@ -1,10 +1,12 @@
 using System.Management.Automation;
 using System.Text;
 
+namespace Sashimi;
+
 [Cmdlet(VerbsData.ConvertFrom, "RawString")]
 [OutputType(typeof(byte[]))]
 [Alias("a2b")]
-public sealed class ConvertFromRawStringComand : PSCmdlet
+public sealed class ConvertFromRawStringComand : RawCommandBase
 {
     [Parameter(Mandatory = true, ValueFromPipeline = true, Position = 0)]
     public string InputString { get; set; } = null!;
@@ -21,7 +23,7 @@ public sealed class ConvertFromRawStringComand : PSCmdlet
     protected override void BeginProcessing()
     {
         _encoding = System.Text.Encoding.GetEncoding(Encoding);
-        WriteVerbose($"[{MyInvocation.MyCommand.Name}] Set encoding: {_encoding.BodyName} [{_encoding.EncodingName}]");
+        WriteVerboseRaw($"Set encoding: {_encoding.BodyName} [{_encoding.EncodingName}]");
     }
 
     protected override void ProcessRecord()
@@ -29,12 +31,12 @@ public sealed class ConvertFromRawStringComand : PSCmdlet
         var bytes = _encoding.GetBytes(InputString);
         _totalWriteBytes += bytes.Length;
         _writeCount++;
-        WriteInformation($"Output chunk: {bytes.Length} bytes", ["Sashimi.Raw.OutputChunk"]);
+        PrintDebug($"Output chunk: {bytes.Length} bytes");
         WriteObject(bytes, false);
     }
 
     protected override void EndProcessing()
     {
-        WriteVerbose($"[{MyInvocation.MyCommand.Name}] Output total: {_totalWriteBytes}, count: {_writeCount}");
+        WriteVerboseRaw($"Output total: {_totalWriteBytes}, count: {_writeCount}");
     }
 }

@@ -6,7 +6,7 @@ namespace Sashimi;
 [OutputType(typeof(void))]
 [OutputType(typeof(byte[]), ParameterSetName = ["PassThru"])]
 [Alias("bout")]
-public sealed class OutRawFileCommand : PSCmdlet
+public sealed class OutRawFileCommand : RawCommandBase
 {
     [Parameter(Mandatory = true, Position = 0)]
     public string Path { get; set; } = null!;
@@ -30,7 +30,7 @@ public sealed class OutRawFileCommand : PSCmdlet
         FileMode mode = Append
             ? (File.Exists(resolvedPath) ? FileMode.Append : FileMode.Create)
             : (File.Exists(resolvedPath) ? FileMode.Truncate : FileMode.CreateNew);
-        WriteVerbose($"[Out-RawFile] Open {resolvedPath}, Mode: {mode}");
+        WriteVerboseRaw($"Open {resolvedPath}, Mode: {mode}");
         _fs = new FileStream(resolvedPath,
                              mode,
                              FileAccess.Write,
@@ -45,7 +45,7 @@ public sealed class OutRawFileCommand : PSCmdlet
         {
             _totalWriteBytes += InputBytes.Length;
             _writeCount++;
-            WriteInformation($"Output chunk {InputBytes.Length} bytes", ["Sashimi.Raw.OutputChunk"]);
+            PrintDebug($"Output chunk {InputBytes.Length} bytes");
 
             _fs?.Write(InputBytes, 0, InputBytes.Length);
 
@@ -58,14 +58,14 @@ public sealed class OutRawFileCommand : PSCmdlet
 
     protected override void StopProcessing()
     {
-        WriteVerbose($"[Out-RawFile] Stopping process");
+        WriteVerboseRaw($"Stopping process");
         _fs?.Dispose();
     }
 
     protected override void EndProcessing()
     {
-        WriteVerbose($"[Out-RawFile] Output total: {_totalWriteBytes}, count: {_writeCount}");
+        WriteVerboseRaw($"Output total: {_totalWriteBytes}, count: {_writeCount}");
         _fs?.Close();
-        WriteVerbose("[Out-RawFile] Close");
+        WriteVerboseRaw("Close");
     }
 }

@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.IO.Pipes;
 using System.Management.Automation;
 using System.Management.Automation.Language;
@@ -19,7 +18,7 @@ public enum OutputType
 [Alias("raw")]
 [OutputType(typeof(byte[]), ParameterSetName = [NormalParameterSet, ScriptBlockParameterSet])]
 [OutputType(typeof(string), ParameterSetName = [NormalAsStringParameterSet, ScriptBlockAsStringParameterSet])]
-public class InvokeRawCommandCommand : PSCmdlet
+public class InvokeRawCommandCommand : RawCommandBase
 {
     private const string NormalParameterSet = "Normal";
     private const string ScriptBlockParameterSet = "ScriptBlock";
@@ -63,14 +62,6 @@ public class InvokeRawCommandCommand : PSCmdlet
     private readonly ConcurrentQueue<string> _stringQueue = [];
     private readonly AutoResetEvent _stringQueueEvent = new(false);
     private volatile bool _readerCompleted = false;
-
-    [Conditional("DEBUG")]
-    private void PrintDebug(ReadOnlySpan<char> msg)
-    {
-        Console.ForegroundColor = ConsoleColor.DarkMagenta;
-        Console.Error.WriteLine($"[{MyInvocation.MyCommand.Name}] {msg}");
-        Console.ResetColor();
-    }
 
     private void OnOutputChunk(byte[] chunk)
     {
@@ -130,7 +121,7 @@ public class InvokeRawCommandCommand : PSCmdlet
             {
                 _processRunner.OnStderr += OnOutputChunkAsString;
             }
-            WriteVerbose($"[{MyInvocation.MyCommand.Name}] Set encoding: UTF-8");
+            WriteVerboseRaw("Set encoding: UTF-8");
             _stringReaderTask = AsyncDecode(_stringClient, Encoding.UTF8);
         }
         else
@@ -145,7 +136,7 @@ public class InvokeRawCommandCommand : PSCmdlet
             }
         }
         _processRunner.StartAsync().Wait();
-        WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Started process with arguments: [{string.Join(", ", _processRunner.Arguments)}]");
+        WriteVerboseProcess($"Started process with arguments: [{string.Join(", ", _processRunner.Arguments)}]");
     }
 
     protected override void ProcessRecord()
@@ -154,14 +145,14 @@ public class InvokeRawCommandCommand : PSCmdlet
         {
             _totalReadBytes += InputBytes.Length;
             _readCount++;
-            WriteInformation($"[{_processRunner.Pid}][{_processRunner.Name}] Read {InputBytes.Length} bytes from pipeline", ["Sashimi.Raw.ReadChunk"]);
+            PrintDebug($"Read {InputBytes.Length} bytes from pipeline");
             _ = _processRunner.WriteStdinAsync(InputBytes);
         }
     }
 
     protected override void StopProcessing()
     {
-        WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Stopping process");
+        WriteVerboseProcess("Stopping process");
         _processRunner.Kill();
         _stringServer?.Dispose();
         _stringClient?.Dispose();
@@ -171,7 +162,7 @@ public class InvokeRawCommandCommand : PSCmdlet
     {
         if (_totalReadBytes > 0)
         {
-            WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Read total: {_totalReadBytes}, count: {_readCount}");
+            WriteVerboseProcess($"Read total: {_totalReadBytes}, count: {_readCount}");
         }
         _processRunner.CloseStdin();
 
@@ -195,13 +186,12 @@ public class InvokeRawCommandCommand : PSCmdlet
                 while (_stringQueue.TryDequeue(out var line))
                 {
                     lineCount++;
-                    WriteInformation($"Output line: [{lineCount}] {line}", ["Sashimi.Raw.OutputLine"]);
+                    PrintDebug($"Output line: [{lineCount}] {line}");
                     WriteObject(line);
                 }
 
                 if (!_readerCompleted)
                 {
-                    WriteInformation("Wait", ["Sashimi.Raw.Wait"]);
                     PrintDebug("Wait for stringQueueEvent");
                     _stringQueueEvent.WaitOne();
                 }
@@ -209,7 +199,7 @@ public class InvokeRawCommandCommand : PSCmdlet
 
             if (lineCount > 0)
             {
-                WriteVerbose($"[{MyInvocation.MyCommand.Name}] Output total line: {lineCount}");
+                WriteVerboseRaw($"Output total line: {lineCount}");
             }
         }
         else
@@ -222,19 +212,19 @@ public class InvokeRawCommandCommand : PSCmdlet
                 {
                     totalWriteBytes += chunk.Length;
                     writeCount++;
-                    WriteInformation($"[{_processRunner.Pid}][{_processRunner.Name}] Output chunk: {chunk.Length} bytes", ["Sashimi.Raw.OutputChunk"]);
+                    PrintDebug($"Output chunk: {chunk.Length} bytes");
                     WriteObject(chunk, false);
                 }
                 if (!_queueInputCompleted)
                 {
-                    WriteInformation($"[{_processRunner.Pid}][{_processRunner.Name}] Wait", ["Sashimi.Raw.Wait"]);
+                    PrintDebug("Wait for stdoutEvent");
                     _stdoutEvent.WaitOne();
                 }
             }
 
             if (totalWriteBytes > 0)
             {
-                WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] Output total: {totalWriteBytes}, count: {writeCount}");
+                WriteVerboseProcess($"Output total: {totalWriteBytes}, count: {writeCount}");
             }
         }
 
@@ -247,9 +237,12 @@ public class InvokeRawCommandCommand : PSCmdlet
         catch { }
         var exitCode = exitTask.Result;
 
-        WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] End [ExitCode = {exitCode}]");
+        WriteVerboseProcess($"End [ExitCode = {exitCode}]");
         SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
     }
+
+    private void WriteVerboseProcess(ReadOnlySpan<char> message)
+        => WriteVerbose($"[{_processRunner.Pid}][{_processRunner.Name}] {message}");
 
     private (string Path, IEnumerable<string> Arguments) GetCommandAndArguments()
     {
