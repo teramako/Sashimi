@@ -4,7 +4,7 @@ external help file: Sashimi.dll-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: Sashimi
-ms.date: 06/13/2026
+ms.date: 06/14/2026
 PlatyPS schema version: 2024-05-01
 title: Out-RawFile
 ---
@@ -32,6 +32,7 @@ Out-RawFile [-Path] <string> -InputBytes <byte[]> -PassThru [-Append]
 ## ALIASES
 
 `rawout`
+
 
 ## DESCRIPTION
 
@@ -178,7 +179,6 @@ It is optimized for streaming scenarios and large binary data.
 
 ## RELATED LINKS
 
-* [Invoke-RawCommand](Invoke-RawCommand.md)
-* [ConvertFrom-RawString](ConvertFrom-RawString.md)
-* [ConvertTo-RawString](ConvertTo-RawString.md)
-
+- [Invoke-RawCommand](Invoke-RawCommand.md)
+- [ConvertFrom-RawString](ConvertFrom-RawString.md)
+- [ConvertTo-RawString](ConvertTo-RawString.md)
