@@ -16,6 +16,13 @@ public sealed class ConvertFromRawStringComand : RawCommandBase
     [Alias("e")]
     public string Encoding { get; set; } = "utf-8";
 
+    [Parameter()]
+    [AllowEmptyString]
+    [AllowNull]
+    [Alias("d")]
+    [ArgumentCompletions("`n", "`r`n", "`r")]
+    public string? Delimiter { get; set; }
+
     private Encoding _encoding = null!;
 
     private long _totalWriteBytes;
@@ -29,9 +36,18 @@ public sealed class ConvertFromRawStringComand : RawCommandBase
 
     protected override void ProcessRecord()
     {
-        var bytes = _encoding.GetBytes(InputString);
-        _totalWriteBytes += bytes.Length;
+        if (_writeCount > 0 && !string.IsNullOrEmpty(Delimiter))
+        {
+            WriteBytes(Delimiter);
+        }
+        WriteBytes(InputString);
         _writeCount++;
+    }
+
+    private void WriteBytes(string text)
+    {
+        var bytes = _encoding.GetBytes(text);
+        _totalWriteBytes += bytes.Length;
         PrintDebug($"Output chunk: {bytes.Length} bytes");
         WriteObject(bytes, false);
     }
