@@ -4,7 +4,7 @@ external help file: Sashimi.dll-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: Sashimi
-ms.date: 06/13/2026
+ms.date: 06/14/2026
 PlatyPS schema version: 2024-05-01
 title: ConvertTo-RawString
 ---
@@ -13,14 +13,14 @@ title: ConvertTo-RawString
 
 ## SYNOPSIS
 
-Converts raw byte input into PowerShell strings using the specified text encoding.
+Converts raw byte input into PowerShell strings using the specified encoding, optionally returning the entire decoded text as a single string.
 
 ## SYNTAX
 
 ### __AllParameterSets
 
 ```
-ConvertTo-RawString -InputBytes <byte[]> [-Encoding <string>] [<CommonParameters>]
+ConvertTo-RawString -InputBytes <byte[]> [-Encoding <string>] [-Raw] [<CommonParameters>]
 ```
 
 ## ALIASES
@@ -40,6 +40,9 @@ The cmdlet emits output **one line at a time**, matching PowerShell's line‑ori
 This makes it suitable for decoding output from `Invoke-RawCommand`, which emits raw byte chunks
 from native processes.
 
+By default, `ConvertTo-RawString` emits one string per line, matching PowerShell’s line‑oriented pipeline model.
+When the `-Raw` switch is used, the cmdlet returns the entire decoded text as a single string, preserving all newline characters.
+
 ## EXAMPLES
 
 ### Example 1
@@ -52,6 +55,16 @@ $bytes | ConvertTo-RawString -Encoding Shift_JIS
 ```
 
 This example decodes the raw byte output of a native command using Shift_JIS.
+
+### Example 2
+
+Return the entire decoded text as a single string.
+
+```powershell
+$bytes | ConvertTo-RawString -Raw
+```
+
+This example preserves all newline characters and returns the full decoded content in one object.
 
 ## PARAMETERS
 
@@ -101,6 +114,28 @@ AcceptedValues: []
 HelpMessage: ''
 ```
 
+### -Raw
+
+Outputs the entire decoded text as a single string instead of splitting it into lines.
+When this switch is specified, the cmdlet disables line‑oriented processing and returns the full decoded content in one object, preserving all newline characters exactly as they appear in the input stream.
+
+```yaml
+Type: System.Management.Automation.SwitchParameter
+DefaultValue: ''
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
 ### CommonParameters
 
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable,
@@ -122,8 +157,8 @@ A byte array can be piped to this cmdlet. Each chunk is decoded as part of the c
 
 ### System.String
 
-The cmdlet outputs decoded text as PowerShell strings.
-Line‑based output is produced when the underlying stream reader encounters newline sequences.
+By default, one string per line is emitted.
+When `-Raw` is specified, a single string containing the entire decoded content is emitted.
 
 ## NOTES
 
