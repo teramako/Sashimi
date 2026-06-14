@@ -21,7 +21,7 @@ Describe 'Invoke-RawCommand' {
             @{ cmd = 'echo'; argv = 'abc';      expected = [byte[]]@(0x61, 0x62, 0x63, 0x0A) },
             @{ cmd = 'echo'; argv = '-n','abc'; expected = [byte[]]@(0x61, 0x62, 0x63) }
         ) {
-            $result = Invoke-RawCommand $cmd $argv -Verbose
+            $result = Invoke-RawCommand $cmd $argv
 
             CompareBytes -Expected $expected -Actual $result
         }
@@ -42,7 +42,7 @@ Describe 'Invoke-RawCommand' {
         It 'input as bulk' {
             $bytes = GetBytes $text $from
             $expected = GetBytes $text $to
-            $result = Invoke-RawCommand iconv $argv -InputBytes $bytes -Verbose
+            $result = Invoke-RawCommand iconv $argv -InputBytes $bytes
 
             CompareBytes -Expected $expected -Actual $result
         }
@@ -50,7 +50,7 @@ Describe 'Invoke-RawCommand' {
         It 'input to the pipline as bulk' {
             $bytes = GetBytes $text $from
             $expected = GetBytes $text $to
-            $result = Write-Output -NoEnumerate $bytes | Invoke-RawCommand iconv $argv -Verbose
+            $result = Write-Output -NoEnumerate $bytes | Invoke-RawCommand iconv $argv
 
             CompareBytes -Expected $expected -Actual $result
         }
@@ -58,7 +58,7 @@ Describe 'Invoke-RawCommand' {
         It 'input into the pipeline by one byte' {
             $bytes = GetBytes $text $from
             $expected = GetBytes $text $to
-            $result = $bytes | Invoke-RawCommand iconv $argv -Verbose
+            $result = $bytes | Invoke-RawCommand iconv $argv
 
             CompareBytes -Expected $expected -Actual $result
         }
@@ -67,7 +67,7 @@ Describe 'Invoke-RawCommand' {
     Context 'Large output' {
         It 'reads 100000 lines without loss' {
             $script = Join-Path -Path $PSScriptRoot -ChildPath 'assets', 'seq100000.sh'
-            $result = Invoke-RawCommand $script -Verbose | ConvertTo-RawString
+            $result = Invoke-RawCommand $script | ConvertTo-RawString
             $result.Count | Should -Be 100000
         }
     }

@@ -10,7 +10,7 @@ Describe 'Out-RawFile' {
             $text = 'abc'
             $bytes = [System.Text.Encoding]::UTF8.GetBytes($text)
 
-            ConvertFrom-RawString 'abc' | Out-RawFile -Path $filePath -Verbose
+            ConvertFrom-RawString 'abc' | Out-RawFile -Path $filePath
 
             $file = Get-Item $filePath
             $file.Exists | Should -BeTrue
@@ -22,8 +22,8 @@ Describe 'Out-RawFile' {
             $text1 = 'abc'
             $text2 = 'def'
 
-            ConvertFrom-RawString $text1 | Out-RawFile -Path $filePath -Verbose
-            ConvertFrom-RawString $text2 | Out-RawFile -Path $filePath -Verbose
+            ConvertFrom-RawString $text1 | Out-RawFile -Path $filePath
+            ConvertFrom-RawString $text2 | Out-RawFile -Path $filePath
 
             Get-Content $filePath | Should -Be $text2
         }
@@ -33,8 +33,8 @@ Describe 'Out-RawFile' {
             $text1 = 'abc'
             $text2 = 'def'
 
-            ConvertFrom-RawString $text1 | Out-RawFile -Path $filePath -Verbose
-            ConvertFrom-RawString $text2 | Out-RawFile -Path $filePath -Append -Verbose
+            ConvertFrom-RawString $text1 | Out-RawFile -Path $filePath
+            ConvertFrom-RawString $text2 | Out-RawFile -Path $filePath -Append
 
             Get-Content $filePath | Should -Be ($text1 + $text2)
         }
@@ -44,8 +44,8 @@ Describe 'Out-RawFile' {
             $text1 = 'abc'
             $text2 = 'def'
 
-            $result1 = ConvertFrom-RawString $text1 | Out-RawFile -Path $filePath -PassThru -Verbose
-            $result2 = ConvertFrom-RawString $text2 | Out-RawFile -Path $filePath -Append -PassThru -Verbose
+            $result1 = ConvertFrom-RawString $text1 | Out-RawFile -Path $filePath -PassThru
+            $result2 = ConvertFrom-RawString $text2 | Out-RawFile -Path $filePath -Append -PassThru
 
             $result1 | ConvertTo-RawString | Should -Be $text1
             $result2 | ConvertTo-RawString | Should -Be $text2
@@ -54,7 +54,7 @@ Describe 'Out-RawFile' {
         It 'Large output' {
             $filePath = "TestDrive:/large.out"
             $script = Join-Path -Path $PSScriptRoot -ChildPath 'assets', 'seq100000.sh'
-            Invoke-RawCommand $script | Out-RawFile $filePath -Verbose
+            Invoke-RawCommand $script | Out-RawFile $filePath
 
             Get-Content $filePath | Measure-Object -Line | Select-Object -ExpandProperty Lines | Should -Be 100000
         }
