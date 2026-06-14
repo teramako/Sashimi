@@ -111,7 +111,7 @@ PrivateData = @{
         IconUri = 'https://raw.githubusercontent.com/teramako/Sashimi/refs/heads/main/docs/img/Sashimi_85.png'
 
         # ReleaseNotes of this module
-        # ReleaseNotes = ''
+        ReleaseNotes = 'https://github.com/teramako/Sashimi/releases'
 
         # Prerelease string of this module
         # Prerelease = ''
