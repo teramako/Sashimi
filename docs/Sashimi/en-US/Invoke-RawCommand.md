@@ -67,11 +67,11 @@ When the `-AsString` switch is used, the cmdlet decodes the output into a PowerS
 
 ### Example 1
 
-Run a command and decode its Shift_JIS output manually.
+Run a command and decode its UTF-16 output manually.
 
 ```powershell
 $bytes = raw wsl.exe --list
-$bytes | ConvertTo-RawString -Encoding Shift_JIS
+$bytes | ConvertTo-RawString -Encoding UTF-16
 ```
 
 This example captures the raw byte output from `wsl.exe` and converts it to a string using an explicit encoding.
