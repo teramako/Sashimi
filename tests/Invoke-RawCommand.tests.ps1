@@ -71,4 +71,13 @@ Describe 'Invoke-RawCommand' {
             $result.Count | Should -Be 100000
         }
     }
+
+    Context 'AsString' {
+        It 'echo' -ForEach @(
+            @{ text = 'abc' }
+        ) {
+            $result = Invoke-RawCommand echo '-n' $text -AsString
+            Should -BeExactly $text -ActualValue $result
+        }
+    }
 }

@@ -94,7 +94,7 @@ public class InvokeRawCommandCommand : RawCommandBase
         }
 
         var rest = await sr.ReadToEndAsync();
-        if (rest is not null)
+        if (!string.IsNullOrEmpty(rest))
         {
             _stringQueue.Enqueue(rest);
         }
