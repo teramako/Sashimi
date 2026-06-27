@@ -38,10 +38,11 @@ public sealed class RawProcessRunner : IAsyncDisposable
     public event Action<byte[]>? OnStdout;
     public event Action<byte[]>? OnStderr;
 
-    public async Task StartAsync()
+    public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         _process.Start();
-        _outputTask = Task.WhenAll(Task.Run(ReadStdoutLoop), Task.Run(ReadStderrLoop));
+        _outputTask = Task.WhenAll(ReadStdoutLoop(cancellationToken),
+                                   ReadStderrLoop(cancellationToken));
         Pid = _process.Id;
     }
     
@@ -50,32 +51,32 @@ public sealed class RawProcessRunner : IAsyncDisposable
         return _process.StandardInput.BaseStream.WriteAsync(buffer, 0, buffer.Length);
     }
 
-    public void WaitOutput() => _outputTask.Wait();
+    public void WaitOutput(CancellationToken cancellationToken = default) => _outputTask.Wait(cancellationToken);
     
     public void CloseStdin()
     {
         _process.StandardInput.Close();
     }
     
-    private async Task ReadStdoutLoop()
+    private async Task ReadStdoutLoop(CancellationToken cancellationToken = default)
     {
         var stream = _process.StandardOutput.BaseStream;
         var buffer = new byte[BufferSize];
 
         int read;
-        while ((read = await stream.ReadAsync(buffer)) > 0)
+        while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
         {
             OnStdout?.Invoke(buffer.AsSpan(0, read).ToArray());
         }
     }
     
-    private async Task ReadStderrLoop()
+    private async Task ReadStderrLoop(CancellationToken cancellationToken = default)
     {
         var stream = _process.StandardError.BaseStream;
         var buffer = new byte[BufferSize];
 
         int read;
-        while ((read = await stream.ReadAsync(buffer)) > 0)
+        while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
         {
             OnStderr?.Invoke(buffer.AsSpan(0, read).ToArray());
         }
@@ -92,9 +93,9 @@ public sealed class RawProcessRunner : IAsyncDisposable
         }
     }
     
-    public async Task<int> WaitForExitAsync()
+    public async Task<int> WaitForExitAsync(CancellationToken cancellationToken = default)
     {
-        await _process.WaitForExitAsync();
+        await _process.WaitForExitAsync(cancellationToken);
         return _process.ExitCode;
     }
 

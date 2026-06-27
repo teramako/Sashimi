@@ -132,7 +132,7 @@ public class InvokeRawCommandCommand : RawCommandBase
                 _processRunner.OnStderr += OnOutputChunk;
             }
         }
-        _processRunner.StartAsync().Wait();
+        _processRunner.StartAsync(PipelineStopToken).Wait();
         WriteVerboseProcess($"Started process with arguments: [{string.Join(", ", _processRunner.Arguments)}]");
     }
 
@@ -163,7 +163,7 @@ public class InvokeRawCommandCommand : RawCommandBase
         }
         _processRunner.CloseStdin();
 
-        var exitTask = _processRunner.WaitForExitAsync();
+        var exitTask = _processRunner.WaitForExitAsync(PipelineStopToken);
         Task[] tasks;
 
         if (AsString)
@@ -173,14 +173,14 @@ public class InvokeRawCommandCommand : RawCommandBase
                 Task.Run(() =>
                 {
                     PrintDebug($"Wait process runner's output to finish");
-                    _processRunner.WaitOutput();
+                    _processRunner.WaitOutput(PipelineStopToken);
                     _stringServer?.Close();
                 }),
                 exitTask,
             ];
 
             int lineCount = 0;
-            foreach (StringOutput line in _output.GetConsumingEnumerable())
+            foreach (StringOutput line in _output.GetConsumingEnumerable(PipelineStopToken))
             {
                 lineCount++;
                 PrintDebug($"Output line: [{lineCount}] {line.Value}");
@@ -198,7 +198,7 @@ public class InvokeRawCommandCommand : RawCommandBase
                 Task.Run(() =>
                 {
                     PrintDebug($"Wait process runner's output to finish");
-                    _processRunner.WaitOutput();
+                    _processRunner.WaitOutput(PipelineStopToken);
                     PrintDebug("Complete queueInput");
                     _output.CompleteAdding();
                 }),
@@ -207,7 +207,7 @@ public class InvokeRawCommandCommand : RawCommandBase
 
             long totalWriteBytes = 0;
             int writeCount = 0;
-            foreach (ChunkOutput chunk in _output.GetConsumingEnumerable())
+            foreach (ChunkOutput chunk in _output.GetConsumingEnumerable(PipelineStopToken))
             {
                 totalWriteBytes += chunk.Value.Length;
                 writeCount++;
