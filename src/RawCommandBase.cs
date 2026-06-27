@@ -13,16 +13,19 @@ public abstract class RawCommandBase : PSCmdlet
                               [CallerLineNumber] int callerLineNumber = 0)
     {
         Console.ForegroundColor = fg;
-        Console.Error.WriteLine("[{0,-22}] {1,-20} {2}",
+        Console.Error.WriteLine("({0})[{1,-22}] {2,-20} {3}",
+                                _sw.Elapsed,
                                 MyInvocation.MyCommand.Name,
                                 $"{callerMethodName}:{callerLineNumber}:",
                                 msg);
         Console.ResetColor();
     }
 
+    private readonly Stopwatch _sw = Stopwatch.StartNew();
+
     protected void WriteVerboseRaw(ReadOnlySpan<char> message)
     {
-        WriteVerbose($"[{MyInvocation.MyCommand.Name}] {message}");
+        WriteVerbose($"({_sw.Elapsed})[{MyInvocation.MyCommand.Name}] {message}");
     }
 
     protected void WriteInformationRaw(string message, params string[] tags)

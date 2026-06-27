@@ -55,6 +55,12 @@ public sealed class RawProcessRunner : IAsyncDisposable
         private set;
     } = -1;
 
+    /// <inheritdoc cref="Process.StartTime"/>
+    public DateTime StartTime { get; private set; }
+
+    /// <inheritdoc cref="Process.ExitTime"/>
+    public DateTime ExitTime { get; private set; }
+
     /// <summary>
     /// Gets the read-only list of arguments passed to the process.
     /// </summary>
@@ -82,6 +88,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
     public void Start(CancellationToken cancellationToken = default)
     {
         _process.Start();
+        StartTime = _process.StartTime;
 
         // Ensure the process terminates properly upon cancellation
         _killRegistration = cancellationToken.Register(() => Kill());
@@ -172,6 +179,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
         try
         {
             _process.Kill(entireProcessTree: true);
+            ExitTime = _process.ExitTime;
         }
         catch
         {
@@ -189,6 +197,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
     public async Task<int> WaitForExitAsync(CancellationToken cancellationToken = default)
     {
         await _process.WaitForExitAsync(cancellationToken);
+        ExitTime = _process.ExitTime;
         return _process.ExitCode;
     }
 
