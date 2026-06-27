@@ -81,6 +81,10 @@ public sealed class RawProcessRunner : IAsyncDisposable
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         _process.Start();
+
+        // Ensure the process terminates properly upon cancellation
+        cancellationToken.Register(() => Kill());
+
         _outputTask = Task.WhenAll(ReadStdoutLoop(cancellationToken),
                                    ReadStderrLoop(cancellationToken));
         Pid = _process.Id;
@@ -89,9 +93,9 @@ public sealed class RawProcessRunner : IAsyncDisposable
     /// <summary>
     /// Writes raw bytes to the process's standard input stream.
     /// </summary>
-    public Task WriteStdinAsync(byte[] buffer)
+    public Task WriteStdinAsync(byte[] buffer, CancellationToken cancellationToken = default)
     {
-        return _process.StandardInput.BaseStream.WriteAsync(buffer, 0, buffer.Length);
+        return _process.StandardInput.BaseStream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
     }
 
     /// <summary>
@@ -120,10 +124,17 @@ public sealed class RawProcessRunner : IAsyncDisposable
         var stream = _process.StandardOutput.BaseStream;
         var buffer = new byte[BufferSize];
 
-        int read;
-        while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
+        try
         {
-            OnStdout?.Invoke(buffer.AsSpan(0, read).ToArray());
+            int read;
+            while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
+            {
+                OnStdout?.Invoke(buffer.AsSpan(0, read).ToArray());
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // quiet stop on cancellation
         }
     }
 
@@ -136,10 +147,17 @@ public sealed class RawProcessRunner : IAsyncDisposable
         var stream = _process.StandardError.BaseStream;
         var buffer = new byte[BufferSize];
 
-        int read;
-        while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
+        try
         {
-            OnStderr?.Invoke(buffer.AsSpan(0, read).ToArray());
+            int read;
+            while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
+            {
+                OnStderr?.Invoke(buffer.AsSpan(0, read).ToArray());
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // quiet stop on cancellation
         }
     }
 

@@ -143,7 +143,7 @@ public class InvokeRawCommandCommand : RawCommandBase
             _totalReadBytes += InputBytes.Length;
             _readCount++;
             PrintDebug($"Read {InputBytes.Length} bytes from pipeline");
-            _ = _processRunner.WriteStdinAsync(InputBytes);
+            _ = _processRunner.WriteStdinAsync(InputBytes, PipelineStopToken);
         }
     }
 
