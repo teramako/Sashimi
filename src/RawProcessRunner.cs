@@ -36,6 +36,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
     private readonly Process _process;
     private const int BufferSize = 4096;
     private Task _outputTask = null!;
+    private CancellationTokenRegistration? _killRegistration;
 
     /// <summary>
     /// Gets the executable file name of the process.
@@ -78,12 +79,12 @@ public sealed class RawProcessRunner : IAsyncDisposable
     /// Typically passed from PowerShell's <c>PipelineStopToken</c>
     /// so that Ctrl+C or pipeline cancellation immediately stops all I/O.
     /// </param>
-    public async Task StartAsync(CancellationToken cancellationToken = default)
+    public void Start(CancellationToken cancellationToken = default)
     {
         _process.Start();
 
         // Ensure the process terminates properly upon cancellation
-        cancellationToken.Register(() => Kill());
+        _killRegistration = cancellationToken.Register(() => Kill());
 
         _outputTask = Task.WhenAll(ReadStdoutLoop(cancellationToken),
                                    ReadStderrLoop(cancellationToken));
@@ -105,7 +106,8 @@ public sealed class RawProcessRunner : IAsyncDisposable
     /// Cancels the wait operation.  
     /// Does not kill the process; use <see cref="Kill"/> for that.
     /// </param>
-    public void WaitOutput(CancellationToken cancellationToken = default) => _outputTask.Wait(cancellationToken);
+    public Task WaitOutputAsync(CancellationToken cancellationToken = default)
+        => _outputTask.WaitAsync(cancellationToken);
 
     /// <summary>
     /// Closes the process's standard input stream, signaling end-of-input.
@@ -194,10 +196,18 @@ public sealed class RawProcessRunner : IAsyncDisposable
     /// Disposes the underlying process object and resets the PID.
     /// </summary>
     /// <inheritdoc/>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
+        _killRegistration?.Dispose();
+        Kill();
+        try
+        {
+            if (_outputTask is not null)
+                await _outputTask;
+        }
+        catch
+        { }
         _process.Dispose();
         Pid = -1;
-        return ValueTask.CompletedTask;
     }
 }

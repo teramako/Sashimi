@@ -132,7 +132,7 @@ public class InvokeRawCommandCommand : RawCommandBase
                 _processRunner.OnStderr += OnOutputChunk;
             }
         }
-        _processRunner.StartAsync(PipelineStopToken).Wait();
+        _processRunner.Start(PipelineStopToken);
         WriteVerboseProcess($"Started process with arguments: [{string.Join(", ", _processRunner.Arguments)}]");
     }
 
@@ -170,10 +170,10 @@ public class InvokeRawCommandCommand : RawCommandBase
         {
             tasks = [
                 _stringReaderTask!,
-                Task.Run(() =>
+                Task.Run(async () =>
                 {
                     PrintDebug($"Wait process runner's output to finish");
-                    _processRunner.WaitOutput(PipelineStopToken);
+                    await _processRunner.WaitOutputAsync(PipelineStopToken);
                     _stringServer?.Close();
                 }),
                 exitTask,
@@ -195,10 +195,10 @@ public class InvokeRawCommandCommand : RawCommandBase
         else
         {
             tasks = [
-                Task.Run(() =>
+                Task.Run(async () =>
                 {
                     PrintDebug($"Wait process runner's output to finish");
-                    _processRunner.WaitOutput(PipelineStopToken);
+                    await _processRunner.WaitOutputAsync(PipelineStopToken);
                     PrintDebug("Complete queueInput");
                     _output.CompleteAdding();
                 }),
