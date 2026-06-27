@@ -80,4 +80,21 @@ Describe 'Invoke-RawCommand' {
             Should -BeExactly $text -ActualValue $result
         }
     }
+
+    Context 'Cancel' {
+        BeforeAll {
+            $env:SashimiModulePath = Resolve-Path -RelativeBasePath $PSScriptRoot -Path ..
+        }
+
+        It 'Cancel after 1 second' {
+            $job = Start-Job {
+                Import-Module $env:SashimiModulePath
+                Invoke-RawCommand dd if=/dev/urandom bs=8 ("count={0}" -f 10mb) -Verbose >$null
+            }
+            Start-Sleep -Second 1
+            Stop-Job $job
+            Receive-Job $job -Wait -AutoRemoveJob | Out-Null
+            $job.State | Should -Be 'Stopped'
+        }
+    }
 }
