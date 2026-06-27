@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Improved
+- Enhanced `-Verbose` output to include cmdlet execution time, process StartTime/ExitTime, and Duration for better debugging visibility.
 - Refactored `RawProcessRunner` for full async/cancellation safety.
   - Replaced `StartAsync` with synchronous `Start` and introduced `WaitOutputAsync`.
   - Propagated `PipelineStopToken` through all process I/O paths (stdin, stdout, stderr, exit wait).
