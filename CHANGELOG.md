@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## 1.1.0
 
 ### Improved
 - Enhanced `-Verbose` output to include cmdlet execution time, process StartTime/ExitTime, and Duration for better debugging visibility.
