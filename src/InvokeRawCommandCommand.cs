@@ -51,9 +51,7 @@ public class InvokeRawCommandCommand : RawCommandBase
 
     private RawProcessRunner _processRunner = null!;
 
-    private readonly ConcurrentQueue<byte[]> _stdoutQueue = [];
-    private readonly AutoResetEvent _stdoutEvent = new(false);
-    private volatile bool _queueInputCompleted = false;
+    private readonly BlockingCollection<byte[]> _chunkOutput = new(1024);
 
     private long _totalReadBytes;
     private int _readCount;
@@ -61,14 +59,11 @@ public class InvokeRawCommandCommand : RawCommandBase
     private AnonymousPipeServerStream? _stringServer;
     private AnonymousPipeClientStream? _stringClient;
     private Task? _stringReaderTask;
-    private readonly ConcurrentQueue<string> _stringQueue = [];
-    private readonly AutoResetEvent _stringQueueEvent = new(false);
-    private volatile bool _readerCompleted = false;
+    private readonly BlockingCollection<string> _stringOutput = new(1024);
 
     private void OnOutputChunk(byte[] chunk)
     {
-        _stdoutQueue.Enqueue(chunk);
-        _stdoutEvent.Set();
+        _chunkOutput.Add(chunk);
     }
 
     private void OnOutputChunkAsString(byte[] chunk)
@@ -90,20 +85,17 @@ public class InvokeRawCommandCommand : RawCommandBase
             if (line is null)
                 break;
 
-            _stringQueue.Enqueue(line);
-            PrintDebug("Set stringQueueEvent");
-            _stringQueueEvent.Set();
+            PrintDebug("Set string line");
+            _stringOutput.Add(line);
         }
 
         var rest = await sr.ReadToEndAsync();
         if (!string.IsNullOrEmpty(rest))
         {
-            _stringQueue.Enqueue(rest);
+            _stringOutput.Add(rest);
         }
         PrintDebug("Complete stringReader");
-        _readerCompleted = true;
-        PrintDebug("Set stringQueueEvent (final)");
-        _stringQueueEvent.Set();
+        _stringOutput.CompleteAdding();
     }
 
     protected override void BeginProcessing()
@@ -175,28 +167,17 @@ public class InvokeRawCommandCommand : RawCommandBase
             _processRunner.WaitOutput();
             _stringServer?.Close();
             PrintDebug("Complete queueInput");
-            _queueInputCompleted = true;
-            PrintDebug("Set stdoutEvent (final)");
-            _stdoutEvent.Set();
+            _chunkOutput.CompleteAdding();
         });
 
         if (AsString)
         {
             int lineCount = 0;
-            while (!_readerCompleted || !_stringQueue.IsEmpty)
+            foreach (var line in _stringOutput.GetConsumingEnumerable())
             {
-                while (_stringQueue.TryDequeue(out var line))
-                {
-                    lineCount++;
-                    PrintDebug($"Output line: [{lineCount}] {line}");
-                    WriteObject(line);
-                }
-
-                if (!_readerCompleted)
-                {
-                    PrintDebug("Wait for stringQueueEvent");
-                    _stringQueueEvent.WaitOne();
-                }
+                lineCount++;
+                PrintDebug($"Output line: [{lineCount}] {line}");
+                WriteObject(line);
             }
 
             if (lineCount > 0)
@@ -208,20 +189,12 @@ public class InvokeRawCommandCommand : RawCommandBase
         {
             long totalWriteBytes = 0;
             int writeCount = 0;
-            while (!_queueInputCompleted || !_stdoutQueue.IsEmpty)
+            foreach (var chunk in _chunkOutput.GetConsumingEnumerable())
             {
-                while (_stdoutQueue.TryDequeue(out var chunk))
-                {
-                    totalWriteBytes += chunk.Length;
-                    writeCount++;
-                    PrintDebug($"Output chunk: {chunk.Length} bytes");
-                    WriteObject(chunk, false);
-                }
-                if (!_queueInputCompleted)
-                {
-                    PrintDebug("Wait for stdoutEvent");
-                    _stdoutEvent.WaitOne();
-                }
+                totalWriteBytes += chunk.Length;
+                writeCount++;
+                PrintDebug($"Output chunk: {chunk.Length} bytes");
+                WriteObject(chunk, false);
             }
 
             if (totalWriteBytes > 0)
