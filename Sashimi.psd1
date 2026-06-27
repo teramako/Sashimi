@@ -33,7 +33,7 @@ Copyright = '(c) teramako. All rights reserved.'
 Description = 'Raw process I/O for PowerShell — execute external commands and handle stdin/stdout/stderr as byte streams.'
 
 # Minimum version of the PowerShell engine required by this module
-# PowerShellVersion = ''
+PowerShellVersion = '7.6'
 
 # Name of the PowerShell host required by this module
 # PowerShellHostName = ''

@@ -132,7 +132,7 @@ public class InvokeRawCommandCommand : RawCommandBase
                 _processRunner.OnStderr += OnOutputChunk;
             }
         }
-        _processRunner.StartAsync().Wait();
+        _processRunner.Start(PipelineStopToken);
         WriteVerboseProcess($"Started process with arguments: [{string.Join(", ", _processRunner.Arguments)}]");
     }
 
@@ -143,7 +143,7 @@ public class InvokeRawCommandCommand : RawCommandBase
             _totalReadBytes += InputBytes.Length;
             _readCount++;
             PrintDebug($"Read {InputBytes.Length} bytes from pipeline");
-            _ = _processRunner.WriteStdinAsync(InputBytes);
+            _ = _processRunner.WriteStdinAsync(InputBytes, PipelineStopToken);
         }
     }
 
@@ -163,24 +163,24 @@ public class InvokeRawCommandCommand : RawCommandBase
         }
         _processRunner.CloseStdin();
 
-        var exitTask = _processRunner.WaitForExitAsync();
+        var exitTask = _processRunner.WaitForExitAsync(PipelineStopToken);
         Task[] tasks;
 
         if (AsString)
         {
             tasks = [
                 _stringReaderTask!,
-                Task.Run(() =>
+                Task.Run(async () =>
                 {
                     PrintDebug($"Wait process runner's output to finish");
-                    _processRunner.WaitOutput();
+                    await _processRunner.WaitOutputAsync(PipelineStopToken);
                     _stringServer?.Close();
                 }),
                 exitTask,
             ];
 
             int lineCount = 0;
-            foreach (StringOutput line in _output.GetConsumingEnumerable())
+            foreach (StringOutput line in _output.GetConsumingEnumerable(PipelineStopToken))
             {
                 lineCount++;
                 PrintDebug($"Output line: [{lineCount}] {line.Value}");
@@ -195,10 +195,10 @@ public class InvokeRawCommandCommand : RawCommandBase
         else
         {
             tasks = [
-                Task.Run(() =>
+                Task.Run(async () =>
                 {
                     PrintDebug($"Wait process runner's output to finish");
-                    _processRunner.WaitOutput();
+                    await _processRunner.WaitOutputAsync(PipelineStopToken);
                     PrintDebug("Complete queueInput");
                     _output.CompleteAdding();
                 }),
@@ -207,7 +207,7 @@ public class InvokeRawCommandCommand : RawCommandBase
 
             long totalWriteBytes = 0;
             int writeCount = 0;
-            foreach (ChunkOutput chunk in _output.GetConsumingEnumerable())
+            foreach (ChunkOutput chunk in _output.GetConsumingEnumerable(PipelineStopToken))
             {
                 totalWriteBytes += chunk.Value.Length;
                 writeCount++;
