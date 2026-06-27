@@ -164,20 +164,21 @@ public class InvokeRawCommandCommand : RawCommandBase
         _processRunner.CloseStdin();
 
         var exitTask = _processRunner.WaitForExitAsync();
-        var outputTask = Task.Run(() =>
-        {
-            PrintDebug($"Wait process runner's output to finish");
-            _processRunner.WaitOutput();
-            _stringServer?.Close();
-            if (!AsString)
-            {
-                PrintDebug("Complete queueInput");
-                _output.CompleteAdding();
-            }
-        });
+        Task[] tasks;
 
         if (AsString)
         {
+            tasks = [
+                _stringReaderTask!,
+                Task.Run(() =>
+                {
+                    PrintDebug($"Wait process runner's output to finish");
+                    _processRunner.WaitOutput();
+                    _stringServer?.Close();
+                }),
+                exitTask,
+            ];
+
             int lineCount = 0;
             foreach (StringOutput line in _output.GetConsumingEnumerable())
             {
@@ -193,6 +194,17 @@ public class InvokeRawCommandCommand : RawCommandBase
         }
         else
         {
+            tasks = [
+                Task.Run(() =>
+                {
+                    PrintDebug($"Wait process runner's output to finish");
+                    _processRunner.WaitOutput();
+                    PrintDebug("Complete queueInput");
+                    _output.CompleteAdding();
+                }),
+                exitTask,
+            ];
+
             long totalWriteBytes = 0;
             int writeCount = 0;
             foreach (ChunkOutput chunk in _output.GetConsumingEnumerable())
@@ -211,9 +223,7 @@ public class InvokeRawCommandCommand : RawCommandBase
 
         try
         {
-            _stringReaderTask?.Wait();
-            outputTask.Wait();
-            exitTask.Wait();
+            Task.WaitAll(tasks);
         }
         catch { }
         var exitCode = exitTask.Result;
