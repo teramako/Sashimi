@@ -4,7 +4,7 @@ external help file: Sashimi.dll-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: Sashimi
-ms.date: 06/14/2026
+ms.date: 06/28/2026
 PlatyPS schema version: 2024-05-01
 title: Out-RawFile
 ---
@@ -26,7 +26,7 @@ Out-RawFile [-Path] <string> -InputBytes <byte[]> [-Append] [<CommonParameters>]
 ### PassThru
 
 ```
-Out-RawFile [-Path] <string> -InputBytes <byte[]> -PassThru [-Append]
+Out-RawFile [-Path] <string> -InputBytes <byte[]> -PassThru [-Append] [<CommonParameters>]
 ```
 
 ## ALIASES
