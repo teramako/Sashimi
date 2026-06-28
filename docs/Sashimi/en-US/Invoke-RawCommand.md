@@ -4,7 +4,7 @@ external help file: Sashimi.dll-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: Sashimi
-ms.date: 06/14/2026
+ms.date: 06/28/2026
 PlatyPS schema version: 2024-05-01
 title: Invoke-RawCommand
 ---
@@ -21,27 +21,13 @@ Executes a native command and returns its output as raw bytes or decoded text.
 
 ```
 Invoke-RawCommand [-Command] <string> [[-Arguments] <string[]>] [-InputBytes <byte[]>]
- [-Output <OutputType>] [<CommonParameters>]
+ [-Output <OutputType>] [-AsString] [<CommonParameters>]
 ```
 
 ### ScriptBlock
 
 ```
-Invoke-RawCommand [-Script] <scriptblock> [-InputBytes <byte[]>] [-Output <OutputType>]
- [<CommonParameters>]
-```
-
-### NormalAsString
-
-```
-Invoke-RawCommand [-Command] <string> [[-Arguments] <string[]>] -AsString [-InputBytes <byte[]>]
- [-Output <OutputType>] [<CommonParameters>]
-```
-
-### ScriptBlockAsString
-
-```
-Invoke-RawCommand [-Script] <scriptblock> -AsString [-InputBytes <byte[]>] [-Output <OutputType>]
+Invoke-RawCommand [-Script] <scriptblock> [-InputBytes <byte[]>] [-Output <OutputType>] [-AsString]
  [<CommonParameters>]
 ```
 
@@ -109,12 +95,6 @@ ParameterSets:
   ValueFromPipeline: false
   ValueFromPipelineByPropertyName: false
   ValueFromRemainingArguments: true
-- Name: NormalAsString
-  Position: 1
-  IsRequired: false
-  ValueFromPipeline: false
-  ValueFromPipelineByPropertyName: false
-  ValueFromRemainingArguments: true
 DontShow: false
 AcceptedValues: []
 HelpMessage: ''
@@ -135,15 +115,9 @@ SupportsWildcards: false
 Aliases:
 - s
 ParameterSets:
-- Name: NormalAsString
+- Name: (All)
   Position: Named
-  IsRequired: true
-  ValueFromPipeline: false
-  ValueFromPipelineByPropertyName: false
-  ValueFromRemainingArguments: false
-- Name: ScriptBlockAsString
-  Position: Named
-  IsRequired: true
+  IsRequired: false
   ValueFromPipeline: false
   ValueFromPipelineByPropertyName: false
   ValueFromRemainingArguments: false
@@ -164,12 +138,6 @@ SupportsWildcards: false
 Aliases: []
 ParameterSets:
 - Name: Normal
-  Position: 0
-  IsRequired: true
-  ValueFromPipeline: false
-  ValueFromPipelineByPropertyName: false
-  ValueFromRemainingArguments: false
-- Name: NormalAsString
   Position: 0
   IsRequired: true
   ValueFromPipeline: false
@@ -244,12 +212,6 @@ SupportsWildcards: false
 Aliases: []
 ParameterSets:
 - Name: ScriptBlock
-  Position: 0
-  IsRequired: true
-  ValueFromPipeline: false
-  ValueFromPipelineByPropertyName: false
-  ValueFromRemainingArguments: false
-- Name: ScriptBlockAsString
   Position: 0
   IsRequired: true
   ValueFromPipeline: false

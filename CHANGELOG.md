@@ -1,5 +1,17 @@
 # Changelog
 
+## ## 1.1.1 - 2026-06-28
+
+### Fixed
+- Fixed a pipeline binding issue in `Invoke-RawCommand` where parameter-set
+  resolution could fail when receiving pipeline input, causing Script/Command
+  detection to break. Simplified binding logic and removed parameter-set-specific
+  handling for `-AsString`.
+
+- Avoided a rare race condition on Linux/WSL where reading `Process.StartTime`
+  could throw a `Win32Exception` if `/proc/<pid>/stat` was not yet available.
+  A safe timestamp is now used for verbose logging.
+
 ## 1.1.0
 
 ### Improved
