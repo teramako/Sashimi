@@ -127,7 +127,7 @@ public class InvokeRawCommandCommand : RawCommandBase
             }
         }
         _processRunner.Start(PipelineStopToken);
-        WriteVerboseProcess($"Started process with arguments: [{string.Join(", ", _processRunner.Arguments)}] ({_processRunner.StartTime:HH:mm:ss.fff})");
+        WriteVerboseProcess($"Started process with arguments: [{string.Join(", ", _processRunner.Arguments)}] ({_processRunner.StartTime.ToLocalTime():HH:mm:ss.fff})");
     }
 
     protected override void ProcessRecord()
@@ -222,7 +222,7 @@ public class InvokeRawCommandCommand : RawCommandBase
         catch { }
         var exitCode = exitTask.Result;
 
-        WriteVerboseProcess($"End [ExitCode = {exitCode}] ({_processRunner.ExitTime:HH:mm:ss.fff}, Duration={_processRunner.ExitTime - _processRunner.StartTime}))");
+        WriteVerboseProcess($"End [ExitCode = {exitCode}] ({_processRunner.ExitTime.ToLocalTime():HH:mm:ss.fff}, Duration={_processRunner.ExitTime - _processRunner.StartTime}))");
         SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
     }
 

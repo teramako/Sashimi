@@ -88,7 +88,15 @@ public sealed class RawProcessRunner : IAsyncDisposable
     public void Start(CancellationToken cancellationToken = default)
     {
         _process.Start();
-        StartTime = _process.StartTime;
+        try
+        {
+            StartTime = _process.StartTime.ToUniversalTime();
+        }
+        catch
+        {
+            // Fallback — process info not yet available (race on /proc). Use UtcNow.
+            StartTime = DateTime.UtcNow;
+        }
 
         // Ensure the process terminates properly upon cancellation
         _killRegistration = cancellationToken.Register(() => Kill());
@@ -179,7 +187,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
         try
         {
             _process.Kill(entireProcessTree: true);
-            ExitTime = _process.ExitTime;
+            ExitTime = _process.ExitTime.ToUniversalTime();
         }
         catch
         {
@@ -197,7 +205,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
     public async Task<int> WaitForExitAsync(CancellationToken cancellationToken = default)
     {
         await _process.WaitForExitAsync(cancellationToken);
-        ExitTime = _process.ExitTime;
+        ExitTime = _process.ExitTime.ToUniversalTime();
         return _process.ExitCode;
     }
 

@@ -8,6 +8,10 @@
   detection to break. Simplified binding logic and removed parameter-set-specific
   handling for `-AsString`.
 
+- Avoided a rare race condition on Linux/WSL where reading `Process.StartTime`
+  could throw a `Win32Exception` if `/proc/<pid>/stat` was not yet available.
+  A safe timestamp is now used for verbose logging.
+
 ## 1.1.0
 
 ### Improved
