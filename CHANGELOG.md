@@ -1,5 +1,13 @@
 # Changelog
 
+## ## 1.1.1 - 2026-06-28
+
+### Fixed
+- Fixed a pipeline binding issue in `Invoke-RawCommand` where parameter-set
+  resolution could fail when receiving pipeline input, causing Script/Command
+  detection to break. Simplified binding logic and removed parameter-set-specific
+  handling for `-AsString`.
+
 ## 1.1.0
 
 ### Improved

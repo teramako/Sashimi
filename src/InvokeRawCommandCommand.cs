@@ -20,26 +20,21 @@ internal record StringOutput(string Value) : RawOutputItem;
 
 [Cmdlet(VerbsLifecycle.Invoke, "RawCommand", DefaultParameterSetName = NormalParameterSet)]
 [Alias("raw")]
-[OutputType(typeof(byte[]), ParameterSetName = [NormalParameterSet, ScriptBlockParameterSet])]
-[OutputType(typeof(string), ParameterSetName = [NormalAsStringParameterSet, ScriptBlockAsStringParameterSet])]
+[OutputType(typeof(byte[]))]
+[OutputType(typeof(string))]
 public class InvokeRawCommandCommand : RawCommandBase
 {
     private const string NormalParameterSet = "Normal";
     private const string ScriptBlockParameterSet = "ScriptBlock";
-    private const string NormalAsStringParameterSet = "NormalAsString";
-    private const string ScriptBlockAsStringParameterSet = "ScriptBlockAsString";
 
     [Parameter(ParameterSetName = NormalParameterSet, Mandatory = true, Position = 0)]
-    [Parameter(ParameterSetName = NormalAsStringParameterSet, Mandatory = true, Position = 0)]
-    public string Command { get; set; } = null!;
+    public string? Command { get; set; }
 
     [Parameter(ParameterSetName = NormalParameterSet, ValueFromRemainingArguments = true, Position = 1)]
-    [Parameter(ParameterSetName = NormalAsStringParameterSet, ValueFromRemainingArguments = true, Position = 1)]
     public string[] Arguments { get; set; } = [];
 
     [Parameter(ParameterSetName = ScriptBlockParameterSet, Mandatory = true, Position = 0)]
-    [Parameter(ParameterSetName = ScriptBlockAsStringParameterSet, Mandatory = true, Position = 0)]
-    public ScriptBlock Script { get; set; } = null!;
+    public ScriptBlock? Script { get; set; }
 
     [Parameter(ValueFromPipeline = true)]
     public byte[]? InputBytes { get; set; }
@@ -48,8 +43,7 @@ public class InvokeRawCommandCommand : RawCommandBase
     [Alias("o")]
     public OutputType Output { get; set; } = OutputType.Stdout;
 
-    [Parameter(ParameterSetName = NormalAsStringParameterSet, Mandatory = true)]
-    [Parameter(ParameterSetName = ScriptBlockAsStringParameterSet, Mandatory = true)]
+    [Parameter()]
     [Alias("s")]
     public SwitchParameter AsString { get; set; }
 
@@ -237,7 +231,7 @@ public class InvokeRawCommandCommand : RawCommandBase
 
     private (string Path, IEnumerable<string> Arguments) GetCommandAndArguments()
     {
-        if (ParameterSetName is ScriptBlockParameterSet)
+        if (Script is not null)
         {
             var ast = Script.Ast as ScriptBlockAst;
             var cmdAst = ast?.EndBlock.Statements.OfType<PipelineAst>()
@@ -254,10 +248,17 @@ public class InvokeRawCommandCommand : RawCommandBase
                                                   });
             return (GetAppInfo(cmdAst.GetCommandName()).Path, arguments);
         }
-        else
+
+        if (!string.IsNullOrWhiteSpace(Command))
         {
             return (GetAppInfo(Command).Path, Arguments);
         }
+
+        ThrowTerminatingError(new(new ArgumentException("Either -Script or -Command must be provided."),
+                                  "MissingParameter",
+                                  ErrorCategory.InvalidArgument,
+                                  this));
+        return (string.Empty, []);
 
         ApplicationInfo GetAppInfo(string name)
             => InvokeCommand.GetCommand(name, CommandTypes.Application) as ApplicationInfo
