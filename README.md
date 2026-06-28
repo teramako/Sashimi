@@ -17,6 +17,18 @@ Sashimi provides commands that communicate with external processes at the byte-s
 | `ConvertTo-RawString`   | `b2a`  | Converts byte sequences to `string`s, one line at a time. |
 | `Out-RawFile`           | `bout` | Write byte sequences into a file. |
 
+## 🍣 Installation
+
+Sashimi can be installed from the PowerShell Gallery using *PSResourceGet*,
+the modern package manager included in PowerShell 7.6 and later.
+
+### PowerShell 7.6+ (recommended)
+```powershell
+Install-PSResource -Name Sashimi
+```
+
+Sashimi requires PowerShell 7.6 or later.
+
 ## 🗺️ Roadmap
 
 ### Version 1.0 — Core foundation
