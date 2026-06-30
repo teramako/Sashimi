@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace Sashimi;
 
@@ -9,6 +11,19 @@ namespace Sashimi;
 /// </summary>
 public sealed class RawProcessRunner : IAsyncDisposable
 {
+#if DEBUG
+    public record DebugMsg(TimeSpan TimeSpan, string Category, string Source, object Message);
+    private readonly Stopwatch _sw = new();
+    private readonly ConcurrentQueue<DebugMsg> _messages = new();
+    public DebugMsg[] DebugMsgs => _messages.ToArray();
+#endif
+
+    [Conditional("DEBUG")]
+    public void Log(object msg, string category, [CallerMemberName] string callerMethodName = "", [CallerLineNumber] int callerLineNumber = 0)
+    {
+        _messages.Enqueue(new(_sw.Elapsed, category, $"{callerMethodName}:{callerLineNumber}", msg));
+    }
+
     /// <summary>
     /// Creates a <see cref="ProcessStartInfo"/> configured for raw I/O:
     /// shell disabled, and stdin/stdout/stderr redirected.
@@ -88,6 +103,10 @@ public sealed class RawProcessRunner : IAsyncDisposable
     public void Start(CancellationToken cancellationToken = default)
     {
         _process.Start();
+#if DEBUG
+        _sw.Start();
+#endif
+        Log("Started", "process");
         try
         {
             StartTime = _process.StartTime.ToUniversalTime();
@@ -99,7 +118,11 @@ public sealed class RawProcessRunner : IAsyncDisposable
         }
 
         // Ensure the process terminates properly upon cancellation
-        _killRegistration = cancellationToken.Register(() => Kill());
+        _killRegistration = cancellationToken.Register(() =>
+        {
+            Log("Killing on cancellationToken", "lifecycle");
+            Kill();
+        });
 
         _outputTask = Task.WhenAll(ReadStdoutLoop(cancellationToken),
                                    ReadStderrLoop(cancellationToken));
@@ -111,6 +134,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
     /// </summary>
     public Task WriteStdinAsync(byte[] buffer, CancellationToken cancellationToken = default)
     {
+        Log($"Read StdIn: {buffer.Length} bytes", "stdin");
         return _process.StandardInput.BaseStream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
     }
 
@@ -129,6 +153,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
     /// </summary>
     public void CloseStdin()
     {
+        Log("Close StdIn", "lifecycle");
         _process.StandardInput.Close();
     }
 
@@ -146,11 +171,14 @@ public sealed class RawProcessRunner : IAsyncDisposable
             int read;
             while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
             {
+                Log($"OnStdout: {read} bytes", "stdout");
                 OnStdout?.Invoke(buffer.AsSpan(0, read).ToArray());
             }
+            Log($"End OnStdout", "stderr");
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
+            Log(ex, "exception");
             // quiet stop on cancellation
         }
     }
@@ -169,11 +197,14 @@ public sealed class RawProcessRunner : IAsyncDisposable
             int read;
             while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
             {
+                Log($"OnStderr: {read} bytes", "stderr");
                 OnStderr?.Invoke(buffer.AsSpan(0, read).ToArray());
             }
+            Log($"End OnStderr", "stderr");
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
+            Log(ex, "exception");
             // quiet stop on cancellation
         }
     }
@@ -188,9 +219,11 @@ public sealed class RawProcessRunner : IAsyncDisposable
         {
             _process.Kill(entireProcessTree: true);
             ExitTime = _process.ExitTime.ToUniversalTime();
+            Log("Killed", "process");
         }
-        catch
+        catch(Exception ex)
         {
+            Log(ex, "exception");
         }
     }
 
@@ -204,8 +237,10 @@ public sealed class RawProcessRunner : IAsyncDisposable
     /// <returns>The process exit code.</returns>
     public async Task<int> WaitForExitAsync(CancellationToken cancellationToken = default)
     {
+        Log("Waiting for exit...", "lifecycle");
         await _process.WaitForExitAsync(cancellationToken);
         ExitTime = _process.ExitTime.ToUniversalTime();
+        Log($"Exit [{_process.ExitCode}]", "process");
         return _process.ExitCode;
     }
 
@@ -215,6 +250,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
+        Log("Killing on disposint", "lifecycle");
         _killRegistration?.Dispose();
         Kill();
         try
@@ -222,8 +258,10 @@ public sealed class RawProcessRunner : IAsyncDisposable
             if (_outputTask is not null)
                 await _outputTask;
         }
-        catch
-        { }
+        catch(Exception ex)
+        {
+            Log(ex, "exception");
+        }
         _process.Dispose();
         Pid = -1;
     }

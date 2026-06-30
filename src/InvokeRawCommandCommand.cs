@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO.Pipes;
 using System.Management.Automation;
 using System.Management.Automation.Language;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Sashimi;
@@ -147,6 +149,8 @@ public class InvokeRawCommandCommand : RawCommandBase
         _processRunner.Kill();
         _stringServer?.Dispose();
         _stringClient?.Dispose();
+
+        PrintDebugMessages();
     }
 
     protected override void EndProcessing()
@@ -224,6 +228,8 @@ public class InvokeRawCommandCommand : RawCommandBase
 
         WriteVerboseProcess($"End [ExitCode = {exitCode}] ({_processRunner.ExitTime.ToLocalTime():HH:mm:ss.fff}, Duration={_processRunner.ExitTime - _processRunner.StartTime}))");
         SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
+
+        PrintDebugMessages();
     }
 
     private void WriteVerboseProcess(ReadOnlySpan<char> message)
@@ -263,5 +269,25 @@ public class InvokeRawCommandCommand : RawCommandBase
         ApplicationInfo GetAppInfo(string name)
             => InvokeCommand.GetCommand(name, CommandTypes.Application) as ApplicationInfo
                 ?? throw new InvalidOperationException($"raw: command '{name}' not found");
+    }
+
+    [Conditional("DEBUG")]
+    private void PrintDebugMessages()
+    {
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        foreach (var msg in _processRunner.DebugMsgs)
+        {
+            Console.Error.WriteLine($"({msg.TimeSpan}){msg.Source,-25} {msg.Category,10}: {msg.Message}");
+        }
+        Console.ResetColor();
+    }
+
+    [Conditional("DEBUG")]
+    protected new void PrintDebug(string msg,
+                                  ConsoleColor fg = ConsoleColor.DarkGray,
+                                  [CallerMemberName] string callerMethodName = "",
+                                  [CallerLineNumber] int callerLineNumber = 0)
+    {
+        _processRunner?.Log($"[{MyInvocation.MyCommand.Name}] {msg}", "cmdlet", callerMethodName, callerLineNumber);
     }
 }
