@@ -246,9 +246,25 @@ public sealed class RawProcessRunner : IAsyncDisposable
             }
         }
 
-        _process.StandardOutput.BaseStream.Close();
-        _process.StandardError.BaseStream.Close();
-        Log("Closed stdout/stderr", "lifecycle");
+        try
+        {
+            _process.StandardOutput.BaseStream.Close();
+            Log("Closed stdout", "lifecycle");
+        }
+        catch (Exception ex)
+        {
+            Log(ex, "stdout");
+        }
+
+        try
+        {
+            _process.StandardError.BaseStream.Close();
+            Log("Closed stderr", "lifecycle");
+        }
+        catch (Exception ex)
+        {
+            Log(ex, "stderr");
+        }
     }
 
     /// <summary>
