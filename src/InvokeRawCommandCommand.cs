@@ -161,21 +161,19 @@ public class InvokeRawCommandCommand : RawCommandBase
         }
         _processRunner.CloseStdin();
 
-        var exitTask = _processRunner.WaitForExitAsync(PipelineStopToken);
-        Task[] tasks;
+        Task<int> exitTask;
 
         if (AsString)
         {
-            tasks = [
-                _stringReaderTask!,
-                Task.Run(async () =>
-                {
-                    PrintDebug($"Wait process runner's output to finish");
-                    await _processRunner.WaitOutputAsync(PipelineStopToken);
-                    _stringServer?.Close();
-                }),
-                exitTask,
-            ];
+            exitTask = Task.Run(async () =>
+            {
+                PrintDebug($"Wait process runner's output to finish");
+                var exitCode = await _processRunner.WaitForCompleteAsync(PipelineStopToken);
+                _stringServer?.Close();
+                if (_stringReaderTask is not null)
+                    await _stringReaderTask;
+                return exitCode;
+            });
 
             int lineCount = 0;
             foreach (StringOutput line in _output.GetConsumingEnumerable(PipelineStopToken))
@@ -192,16 +190,14 @@ public class InvokeRawCommandCommand : RawCommandBase
         }
         else
         {
-            tasks = [
-                Task.Run(async () =>
-                {
-                    PrintDebug($"Wait process runner's output to finish");
-                    await _processRunner.WaitOutputAsync(PipelineStopToken);
-                    PrintDebug("Complete queueInput");
-                    _output.CompleteAdding();
-                }),
-                exitTask,
-            ];
+            exitTask = Task.Run(async () =>
+            {
+                PrintDebug($"Wait process runner's output to finish");
+                var exitCode = await _processRunner.WaitForCompleteAsync(PipelineStopToken);
+                PrintDebug("Complete queueInput");
+                _output.CompleteAdding();
+                return exitCode;
+            });
 
             long totalWriteBytes = 0;
             int writeCount = 0;
@@ -221,7 +217,7 @@ public class InvokeRawCommandCommand : RawCommandBase
 
         try
         {
-            Task.WaitAll(tasks);
+            exitTask.Wait();
         }
         catch { }
         var exitCode = exitTask.Result;

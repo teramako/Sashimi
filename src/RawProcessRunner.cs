@@ -125,7 +125,8 @@ public sealed class RawProcessRunner : IAsyncDisposable
         });
 
         _outputTask = Task.WhenAll(ReadStdoutLoop(cancellationToken),
-                                   ReadStderrLoop(cancellationToken));
+                                   ReadStderrLoop(cancellationToken))
+                          .ContinueWith(_ => { });
         Pid = _process.Id;
     }
 
@@ -137,16 +138,6 @@ public sealed class RawProcessRunner : IAsyncDisposable
         Log($"Read StdIn: {buffer.Length} bytes", "stdin");
         return _process.StandardInput.BaseStream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
     }
-
-    /// <summary>
-    /// Blocks until both stdout and stderr reading tasks complete.
-    /// </summary>
-    /// <param name="cancellationToken">
-    /// Cancels the wait operation.  
-    /// Does not kill the process; use <see cref="Kill"/> for that.
-    /// </param>
-    public Task WaitOutputAsync(CancellationToken cancellationToken = default)
-        => _outputTask.WaitAsync(cancellationToken);
 
     /// <summary>
     /// Closes the process's standard input stream, signaling end-of-input.
@@ -228,7 +219,34 @@ public sealed class RawProcessRunner : IAsyncDisposable
     }
 
     /// <summary>
+    /// Blocks until both stdout and stderr reading tasks complete.
+    /// <para>
+    /// This ensures that all output has been fully read before closing the underlying streams.
+    /// Closing the streams only after the read loops finish prevents race conditions and
+    /// ObjectDisposedException that can occur if the streams are closed prematurely.
+    /// </para>
+    /// </summary>
+    /// <param name="cancellationToken">
+    /// Cancels the wait operation.  
+    /// Does not kill the process; use <see cref="Kill"/> for that.
+    /// </param>
+    public async Task WaitOutputAsync(CancellationToken cancellationToken = default)
+    {
+        Log("Waiting end of output ...", "lifecycle");
+        if (_outputTask is not null)
+            await _outputTask.WaitAsync(cancellationToken);
+
+        _process.StandardOutput.BaseStream.Close();
+        _process.StandardError.BaseStream.Close();
+        Log("Closed stdout/stderr", "lifecycle");
+    }
+
+    /// <summary>
     /// Asynchronously waits for the process to exit.
+    /// <para>
+    /// This does not wait for stdout/stderr to finish reading; use WaitOutputAsync or
+    /// WaitForCompleteAsync to ensure that all output has been fully consumed.
+    /// </para>
     /// </summary>
     /// <param name="cancellationToken">
     /// Cancels the wait operation.  
@@ -242,6 +260,31 @@ public sealed class RawProcessRunner : IAsyncDisposable
         ExitTime = _process.ExitTime.ToUniversalTime();
         Log($"Exit [{_process.ExitCode}]", "process");
         return _process.ExitCode;
+    }
+
+    /// <summary>
+    /// Waits for both the process to exit and all stdout/stderr output to be fully consumed.
+    /// <para>
+    /// This method guarantees the correct completion order:
+    /// <list type="number">
+    ///     <item>Process exit</item>
+    ///     <item>stdout/stderr read loops finish (EOF)</item>
+    ///     <item>Streams are safely closed</item>
+    /// </list>
+    /// When using PipeStream, this method provides the only safe way to ensure that
+    /// stringReaderTask can observe EOF and terminate without deadlocks or race conditions.
+    /// </para>
+    /// </summary>
+    /// <param name="cancellationToken">
+    /// Cancels the wait operation.  
+    /// Does not kill the process; use <see cref="Kill"/> to terminate it.
+    /// </param>
+    /// <returns>The process exit code.</returns>
+    public async Task<int> WaitForCompleteAsync(CancellationToken cancellationToken = default)
+    {
+        var exitCode = await WaitForExitAsync(cancellationToken);
+        await WaitOutputAsync(cancellationToken);
+        return exitCode;
     }
 
     /// <summary>
