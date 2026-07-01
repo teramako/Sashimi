@@ -219,7 +219,16 @@ public class InvokeRawCommandCommand : RawCommandBase
         {
             exitTask.Wait();
         }
-        catch { }
+        catch (AggregateException ex)
+        {
+            if (ex.InnerException is not null)
+            {
+                ThrowTerminatingError(new ErrorRecord(ex.InnerException,
+                                                      "RawCommandProcessCompletionFailed",
+                                                      ErrorCategory.OperationStopped,
+                                                      this));
+            }
+        }
         var exitCode = exitTask.Result;
 
         WriteVerboseProcess($"End [ExitCode = {exitCode}] ({_processRunner.ExitTime.ToLocalTime():HH:mm:ss.fff}, Duration={_processRunner.ExitTime - _processRunner.StartTime}))");
