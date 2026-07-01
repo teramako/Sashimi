@@ -124,9 +124,10 @@ public sealed class RawProcessRunner : IAsyncDisposable
             Kill();
         });
 
-        _outputTask = Task.WhenAll(ReadStdoutLoop(cancellationToken),
-                                   ReadStderrLoop(cancellationToken))
-                          .ContinueWith(_ => { });
+        _outputTask = Task.Run(async () =>
+            await Task.WhenAll(ReadStdoutLoop(cancellationToken),
+                               ReadStderrLoop(cancellationToken)));
+
         Pid = _process.Id;
     }
 
@@ -234,7 +235,16 @@ public sealed class RawProcessRunner : IAsyncDisposable
     {
         Log("Waiting end of output ...", "lifecycle");
         if (_outputTask is not null)
-            await _outputTask.WaitAsync(cancellationToken);
+        {
+            try
+            {
+                await _outputTask.WaitAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Log(ex, "exception");
+            }
+        }
 
         _process.StandardOutput.BaseStream.Close();
         _process.StandardError.BaseStream.Close();
