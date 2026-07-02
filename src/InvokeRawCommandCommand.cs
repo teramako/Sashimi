@@ -217,24 +217,23 @@ public class InvokeRawCommandCommand : RawCommandBase
 
         try
         {
-            exitTask.Wait();
+            var exitCode = exitTask.GetAwaiter().GetResult();
+            WriteVerboseProcess($"End [ExitCode = {exitCode}] ({_processRunner.ExitTime.ToLocalTime():HH:mm:ss.fff}, Duration={_processRunner.ExitTime - _processRunner.StartTime}))");
+            SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
+
         }
-        catch (AggregateException ex)
+        catch (Exception ex)
         {
-            if (ex.InnerException is not null)
-            {
-                ThrowTerminatingError(new ErrorRecord(ex.InnerException,
-                                                      "RawCommandProcessCompletionFailed",
-                                                      ErrorCategory.OperationStopped,
-                                                      this));
-            }
+            SessionState.PSVariable.Set("LASTEXITCODE", 1);
+            ThrowTerminatingError(new ErrorRecord(ex,
+                                                  "RawCommandProcessCompletionFailed",
+                                                  ErrorCategory.OperationStopped,
+                                                  this));
         }
-        var exitCode = exitTask.Result;
-
-        WriteVerboseProcess($"End [ExitCode = {exitCode}] ({_processRunner.ExitTime.ToLocalTime():HH:mm:ss.fff}, Duration={_processRunner.ExitTime - _processRunner.StartTime}))");
-        SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
-
-        PrintDebugMessages();
+        finally
+        {
+            PrintDebugMessages();
+        }
     }
 
     private void WriteVerboseProcess(ReadOnlySpan<char> message)
