@@ -122,8 +122,15 @@ public class InvokeRawCommandCommand : RawCommandBase
 
     protected override void BeginProcessing()
     {
-        _encoding = System.Text.Encoding.GetEncoding(Encoding);
-        _stderrDecoder = _encoding.GetDecoder();
+        try
+        {
+            _encoding = System.Text.Encoding.GetEncoding(Encoding);
+            _stderrDecoder = _encoding.GetDecoder();
+        }
+        catch (Exception ex)
+        {
+            ThrowTerminatingError(new(ex, "InvalidEncoding", ErrorCategory.InvalidArgument, this));
+        }
 
         var cmdInfo = GetCommandAndArguments();
         _processRunner = new RawProcessRunner(cmdInfo.Path, cmdInfo.Arguments);
