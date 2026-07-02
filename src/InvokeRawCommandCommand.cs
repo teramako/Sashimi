@@ -96,6 +96,12 @@ public class InvokeRawCommandCommand : RawCommandBase
                                            $"{_processRunner.Name} (PID: {_processRunner.Pid})");
         record.Tags.AddRange("PSHOST", "stderr");
         _output.Add(new InformationOutput(record));
+
+        // NOTE:
+        // We intentionally do NOT flush the stderr decoder at stream end.
+        // Any remaining bytes in the decoder represent incomplete or undecodable sequences.
+        // Flushing would emit fallback characters, which is undesirable:
+        // stderr should show only successfully decoded text, and undecodable bytes are ignored rather than replaced.
     }
 
     private async Task AsyncDecode(Stream stream, Encoding encoding)
