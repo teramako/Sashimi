@@ -21,7 +21,9 @@ public sealed class RawProcessRunner : IAsyncDisposable
     [Conditional("DEBUG")]
     public void Log(object msg, string category, [CallerMemberName] string callerMethodName = "", [CallerLineNumber] int callerLineNumber = 0)
     {
+#if DEBUG
         _messages.Enqueue(new(_sw.Elapsed, category, $"{callerMethodName}:{callerLineNumber}", msg));
+#endif
     }
 
     /// <summary>

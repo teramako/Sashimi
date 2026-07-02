@@ -278,12 +278,14 @@ public class InvokeRawCommandCommand : RawCommandBase
     [Conditional("DEBUG")]
     private void PrintDebugMessages()
     {
-        Console.ForegroundColor = ConsoleColor.DarkGray;
+#if DEBUG
         foreach (var msg in _processRunner.DebugMsgs)
         {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Error.WriteLine($"({msg.TimeSpan}){msg.Source,-25} {msg.Category,10}: {msg.Message}");
         }
         Console.ResetColor();
+#endif
     }
 
     [Conditional("DEBUG")]
