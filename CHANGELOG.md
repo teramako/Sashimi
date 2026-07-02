@@ -1,6 +1,21 @@
 # Changelog
 
-## ## 1.1.1 - 2026-06-28
+## [Unreleased]
+
+### Improved
+- Refined process completion model to ensure correct ordering of *process exit → output EOF → safe stream close*.  
+  This eliminates race conditions when using PipeStream and guarantees stable shutdown behavior for `Invoke-RawCommand`.
+
+### Fixed
+- Fixed premature-close issues where stdout/stderr streams could be closed before read loops finished, causing occasional `ObjectDisposedException` or incomplete output consumption.
+- `Invoke-RawCommand` now waits on unified completion (`WaitForCompleteAsync`) ensuring that `stringReaderTask` always observes EOF and terminates cleanly.
+
+### Internal
+- Added `WaitForCompleteAsync` to `RawProcessRunner` to unify process-exit and output-completion waiting.
+- Strengthened `WaitOutputAsync` to close stdout/stderr only after read loops fully complete.
+- Updated `InvokeRawCommandCommand` to rely on the new completion model instead of manually coordinating multiple tasks.
+
+## 1.1.1 - 2026-06-28
 
 ### Fixed
 - Fixed a pipeline binding issue in `Invoke-RawCommand` where parameter-set
