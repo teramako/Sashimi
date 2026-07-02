@@ -243,6 +243,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
             catch (Exception ex)
             {
                 Log(ex, "exception");
+                throw;
             }
         }
 
