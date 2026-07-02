@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+- Added `-Encoding` parameter to control decoding of stdout/stderr (default: UTF-8).
+- Added string-based stderr output: stderr byte chunks are now decoded using the specified encoding and emitted as `InformationRecord` with appropriate colorization and tags.
+
 ### Improved
 - Refined process completion model to ensure correct ordering of *process exit → output EOF → safe stream close*.  
   This eliminates race conditions when using PipeStream and guarantees stable shutdown behavior for `Invoke-RawCommand`.
