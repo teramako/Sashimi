@@ -144,7 +144,7 @@ public class InvokeRawCommandCommand : RawCommandBase
             {
                 _processRunner.OnStderr += OnErrorChunk;
             }
-            WriteVerboseRaw("Set encoding: UTF-8");
+            WriteVerboseRaw($"Set encoding: {_encoding.WebName}");
             _stringReaderTask = AsyncDecode(_stringClient, _encoding);
         }
         else
