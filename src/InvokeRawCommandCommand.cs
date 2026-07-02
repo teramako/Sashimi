@@ -19,6 +19,7 @@ public enum OutputType
 internal abstract record RawOutputItem;
 internal record ChunkOutput(byte[] Value) : RawOutputItem;
 internal record StringOutput(string Value) : RawOutputItem;
+internal record InformationOutput(InformationRecord Value) : RawOutputItem;
 
 [Cmdlet(VerbsLifecycle.Invoke, "RawCommand", DefaultParameterSetName = NormalParameterSet)]
 [Alias("raw")]
@@ -49,6 +50,13 @@ public class InvokeRawCommandCommand : RawCommandBase
     [Alias("s")]
     public SwitchParameter AsString { get; set; }
 
+    [Parameter()]
+    [Alias("e")]
+    public string Encoding { get; set; } = "UTF-8";
+
+    private Encoding _encoding = System.Text.Encoding.UTF8;
+    private Decoder? _stderrDecoder;
+
     private RawProcessRunner _processRunner = null!;
 
     private readonly BlockingCollection<RawOutputItem> _output = new(1024);
@@ -75,6 +83,21 @@ public class InvokeRawCommandCommand : RawCommandBase
         }
     }
 
+    private void OnErrorChunk(byte[] chunk)
+    {
+        if (_stderrDecoder is null)
+            return;
+
+        PrintDebug($"Write StdErr: {chunk.Length} bytes");
+        var charCount = _stderrDecoder.GetCharCount(chunk, false);
+        Span<char> text = stackalloc char[charCount];
+        _stderrDecoder.Convert(chunk, text, false, out _, out var charsUsed, out _);
+        var record = new InformationRecord($"{PSStyle.Instance.Formatting.Error}{text[..charsUsed].TrimEnd("\r\n")}{PSStyle.Instance.Reset}",
+                                           $"{_processRunner.Name} (PID: {_processRunner.Pid})");
+        record.Tags.AddRange("PSHOST", "stderr");
+        _output.Add(new InformationOutput(record));
+    }
+
     private async Task AsyncDecode(Stream stream, Encoding encoding)
     {
         using var sr = new StreamReader(stream, encoding);
@@ -99,6 +122,9 @@ public class InvokeRawCommandCommand : RawCommandBase
 
     protected override void BeginProcessing()
     {
+        _encoding = System.Text.Encoding.GetEncoding(Encoding);
+        _stderrDecoder = _encoding.GetDecoder();
+
         var cmdInfo = GetCommandAndArguments();
         _processRunner = new RawProcessRunner(cmdInfo.Path, cmdInfo.Arguments);
 
@@ -114,8 +140,12 @@ public class InvokeRawCommandCommand : RawCommandBase
             {
                 _processRunner.OnStderr += OnOutputChunkAsString;
             }
+            else
+            {
+                _processRunner.OnStderr += OnErrorChunk;
+            }
             WriteVerboseRaw("Set encoding: UTF-8");
-            _stringReaderTask = AsyncDecode(_stringClient, Encoding.UTF8);
+            _stringReaderTask = AsyncDecode(_stringClient, _encoding);
         }
         else
         {
@@ -126,6 +156,10 @@ public class InvokeRawCommandCommand : RawCommandBase
             if (Output.HasFlag(OutputType.Stderr))
             {
                 _processRunner.OnStderr += OnOutputChunk;
+            }
+            else
+            {
+                _processRunner.OnStderr += OnErrorChunk;
             }
         }
         _processRunner.Start(PipelineStopToken);
@@ -176,11 +210,20 @@ public class InvokeRawCommandCommand : RawCommandBase
             });
 
             int lineCount = 0;
-            foreach (StringOutput line in _output.GetConsumingEnumerable(PipelineStopToken))
+            foreach (var output in _output.GetConsumingEnumerable(PipelineStopToken))
             {
-                lineCount++;
-                PrintDebug($"Output line: [{lineCount}] {line.Value}");
-                WriteObject(line.Value);
+                switch (output)
+                {
+                    case StringOutput line:
+                        lineCount++;
+                        PrintDebug($"Output line: [{lineCount}] {line.Value}");
+                        WriteObject(line.Value);
+                        break;
+                    case InformationOutput info:
+                        PrintDebug($"Output Information: {info.Value}");
+                        WriteInformation(info.Value);
+                        break;
+                }
             }
 
             if (lineCount > 0)
@@ -201,12 +244,21 @@ public class InvokeRawCommandCommand : RawCommandBase
 
             long totalWriteBytes = 0;
             int writeCount = 0;
-            foreach (ChunkOutput chunk in _output.GetConsumingEnumerable(PipelineStopToken))
+            foreach (var output in _output.GetConsumingEnumerable(PipelineStopToken))
             {
-                totalWriteBytes += chunk.Value.Length;
-                writeCount++;
-                PrintDebug($"Output chunk: {chunk.Value.Length} bytes");
-                WriteObject(chunk.Value, false);
+                switch (output)
+                {
+                    case ChunkOutput chunk:
+                        totalWriteBytes += chunk.Value.Length;
+                        writeCount++;
+                        PrintDebug($"Output chunk: {chunk.Value.Length} bytes");
+                        WriteObject(chunk.Value, false);
+                        break;
+                    case InformationOutput info:
+                        PrintDebug($"Output Information: {info.Value}");
+                        WriteInformation(info.Value);
+                        break;
+                }
             }
 
             if (totalWriteBytes > 0)
