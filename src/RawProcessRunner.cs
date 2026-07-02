@@ -231,6 +231,11 @@ public sealed class RawProcessRunner : IAsyncDisposable
     /// Cancels the wait operation.  
     /// Does not kill the process; use <see cref="Kill"/> for that.
     /// </param>
+    /// <exception cref="Exception">
+    /// Thrown when either the stdout or stderr read loop fails.
+    /// The exception originates from ReadStdoutLoop or ReadStderrLoop and is
+    /// rethrown after being logged.
+    /// </exception>
     public async Task WaitOutputAsync(CancellationToken cancellationToken = default)
     {
         Log("Waiting end of output ...", "lifecycle");
@@ -307,6 +312,11 @@ public sealed class RawProcessRunner : IAsyncDisposable
     /// Does not kill the process; use <see cref="Kill"/> to terminate it.
     /// </param>
     /// <returns>The process exit code.</returns>
+    /// <exception cref="Exception">
+    /// Thrown when either the stdout or stderr read loop fails.
+    /// This method awaits both process exit and output completion, and will
+    /// propagate any exception raised during output reading.
+    /// </exception>
     public async Task<int> WaitForCompleteAsync(CancellationToken cancellationToken = default)
     {
         var exitCode = await WaitForExitAsync(cancellationToken);
