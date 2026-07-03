@@ -51,6 +51,7 @@ public class InvokeRawCommandCommand : RawCommandBase
     public SwitchParameter AsString { get; set; }
 
     [Parameter()]
+    [ArgumentCompleter(typeof(EncodingCompleter))]
     [Alias("e")]
     public string Encoding { get; set; } = "UTF-8";
 
@@ -130,7 +131,7 @@ public class InvokeRawCommandCommand : RawCommandBase
     {
         try
         {
-            _encoding = System.Text.Encoding.GetEncoding(Encoding);
+            _encoding = EncodingCompleter.GetEncoding(Encoding);
             _stderrDecoder = _encoding.GetDecoder();
         }
         catch (Exception ex)
@@ -157,7 +158,7 @@ public class InvokeRawCommandCommand : RawCommandBase
             {
                 _processRunner.OnStderr += OnErrorChunk;
             }
-            WriteVerboseRaw($"Set encoding: {_encoding.WebName}");
+            WriteVerboseRaw($"Set encoding: {_encoding.WebName} [{_encoding.EncodingName}]");
             _stringReaderTask = AsyncDecode(_stringClient, _encoding);
         }
         else
