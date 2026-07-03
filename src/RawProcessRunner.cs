@@ -51,6 +51,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
     }
 
     private readonly Process _process;
+    private int _pid = -1;
     private const int BufferSize = 4096;
     private Task _outputTask = null!;
     private CancellationTokenRegistration? _killRegistration;
@@ -64,13 +65,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
     /// Gets the process ID after the process has started.
     /// Throws <see cref="InvalidOperationException"/> if accessed before <see cref="StartAsync"/>.
     /// </summary>
-    public int Pid
-    {
-        get => field == -1
-               ? throw new InvalidOperationException("Process has not been started yet.")
-               : field;
-        private set;
-    } = -1;
+    public int Pid => _pid;
 
     /// <inheritdoc cref="Process.StartTime"/>
     public DateTime StartTime { get; private set; }
@@ -108,6 +103,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
 #if DEBUG
         _sw.Start();
 #endif
+        _pid = _process.Id;
         Log("Started", "process");
         try
         {
@@ -129,8 +125,6 @@ public sealed class RawProcessRunner : IAsyncDisposable
         _outputTask = Task.Run(async () =>
             await Task.WhenAll(ReadStdoutLoop(cancellationToken),
                                ReadStderrLoop(cancellationToken)));
-
-        Pid = _process.Id;
     }
 
     /// <summary>
@@ -345,6 +339,6 @@ public sealed class RawProcessRunner : IAsyncDisposable
             Log(ex, "exception");
         }
         _process.Dispose();
-        Pid = -1;
+        _pid = -1;
     }
 }
