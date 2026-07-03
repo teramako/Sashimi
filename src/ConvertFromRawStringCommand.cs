@@ -13,6 +13,7 @@ public sealed class ConvertFromRawStringComand : RawCommandBase
     public string InputString { get; set; } = null!;
 
     [Parameter()]
+    [ArgumentCompleter(typeof(EncodingCompleter))]
     [Alias("e")]
     public string Encoding { get; set; } = "utf-8";
 
@@ -30,7 +31,14 @@ public sealed class ConvertFromRawStringComand : RawCommandBase
 
     protected override void BeginProcessing()
     {
-        _encoding = System.Text.Encoding.GetEncoding(Encoding);
+        try
+        {
+            _encoding = EncodingCompleter.GetEncoding(Encoding);
+        }
+        catch(Exception ex)
+        {
+            ThrowTerminatingError(new(ex, "InvalidEncoding", ErrorCategory.InvalidArgument, this));
+        }
         WriteVerboseRaw($"Set encoding: {_encoding.BodyName} [{_encoding.EncodingName}]");
     }
 
