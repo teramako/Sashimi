@@ -39,7 +39,7 @@ public sealed class ConvertFromRawStringComand : RawCommandBase
         {
             ThrowTerminatingError(new(ex, "InvalidEncoding", ErrorCategory.InvalidArgument, this));
         }
-        WriteVerboseRaw($"Set encoding: {_encoding.BodyName} [{_encoding.EncodingName}]");
+        WriteVerboseRaw($"Set encoding: {_encoding.WebName} [{_encoding.EncodingName}]");
     }
 
     protected override void ProcessRecord()
