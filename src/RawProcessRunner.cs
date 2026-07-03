@@ -12,7 +12,11 @@ namespace Sashimi;
 public sealed class RawProcessRunner : IAsyncDisposable
 {
 #if DEBUG
-    public record DebugMsg(TimeSpan TimeSpan, string Category, string Source, object Message);
+    public record DebugMsg(TimeSpan TimeSpan, string Category, string Source, object Message)
+    {
+        public override string ToString()
+            => $"({TimeSpan}){Source,-25} {Category,10}: {Message}";
+    }
     private readonly Stopwatch _sw = new();
     private readonly ConcurrentQueue<DebugMsg> _messages = new();
     public DebugMsg[] DebugMsgs => _messages.ToArray();

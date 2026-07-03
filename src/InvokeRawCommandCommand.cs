@@ -347,7 +347,7 @@ public class InvokeRawCommandCommand : RawCommandBase
         foreach (var msg in _processRunner.DebugMsgs)
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Error.WriteLine($"({msg.TimeSpan}){msg.Source,-25} {msg.Category,10}: {msg.Message}");
+            Console.Error.WriteLine(msg);
         }
         Console.ResetColor();
 #endif
