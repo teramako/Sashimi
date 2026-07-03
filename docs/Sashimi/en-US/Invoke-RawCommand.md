@@ -4,7 +4,7 @@ external help file: Sashimi.dll-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: Sashimi
-ms.date: 06/28/2026
+ms.date: 07/02/2026
 PlatyPS schema version: 2024-05-01
 title: Invoke-RawCommand
 ---
@@ -21,14 +21,14 @@ Executes a native command and returns its output as raw bytes or decoded text.
 
 ```
 Invoke-RawCommand [-Command] <string> [[-Arguments] <string[]>] [-InputBytes <byte[]>]
- [-Output <OutputType>] [-AsString] [<CommonParameters>]
+ [-Output <OutputType>] [-AsString] [-Encoding <string>] [<CommonParameters>]
 ```
 
 ### ScriptBlock
 
 ```
 Invoke-RawCommand [-Script] <scriptblock> [-InputBytes <byte[]>] [-Output <OutputType>] [-AsString]
- [<CommonParameters>]
+ [-Encoding <string>] [<CommonParameters>]
 ```
 
 ## ALIASES
@@ -48,6 +48,14 @@ When a ScriptBlock is provided, only the first statement is analyzed and execute
 
 `Invoke-RawCommand` normally emits raw `byte[]` data with no text encoding or string conversion.
 When the `-AsString` switch is used, the cmdlet decodes the output into a PowerShell string for convenience.
+
+When `-AsString` is not used, stdout is emitted as raw `byte[]` chunks.  
+Stderr is also captured as raw bytes, but when not selecting raw output modes,  
+stderr is decoded using the encoding specified by `-Encoding` and emitted as `InformationRecord` messages.
+This allows stderr to appear as readable text in the PowerShell pipeline while preserving byte‑level fidelity for stdout.
+
+The `-Encoding` parameter controls how stderr is decoded (default: UTF‑8).  
+This is useful for tools that emit non‑UTF8 error messages such as Shift_JIS or other legacy encodings.
 
 ## EXAMPLES
 
@@ -140,6 +148,34 @@ ParameterSets:
 - Name: Normal
   Position: 0
   IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -Encoding
+
+Specifies the text encoding used to decode stderr when the cmdlet emits string‑based error output.
+Stderr byte chunks are decoded using this encoding and written as `InformationRecord` messages unless raw output is selected.
+
+This parameter does not affect stdout decoding when `-AsString` is used;  
+stdout is decoded using the encoding detected from the process output or UTF‑8 when no encoding can be determined.
+
+Common values include `UTF-8`, `Shift_JIS`, `EUC-JP`, and other encodings supported by .NET.
+
+```yaml
+Type: System.String
+DefaultValue: 'UTF-8'
+SupportsWildcards: false
+Aliases:
+- e
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
   ValueFromPipeline: false
   ValueFromPipelineByPropertyName: false
   ValueFromRemainingArguments: false
