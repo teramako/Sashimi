@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Added
+- Added `EncodingCompleter` for `-Encoding` argument completion.
+  - Provides completion for all installed encodings.
+  - Includes alias completion and descriptive tooltips (code page, display name).
 - Added `-Encoding` parameter to control decoding of stdout/stderr (default: UTF-8).
 - Added string-based stderr output: stderr byte chunks are now decoded using the specified encoding and emitted as `InformationRecord` with appropriate colorization and tags.
 
