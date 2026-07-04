@@ -31,6 +31,7 @@ public class InvokeRawCommandCommand : RawCommandBase
     private const string ScriptBlockParameterSet = "ScriptBlock";
 
     [Parameter(ParameterSetName = NormalParameterSet, Mandatory = true, Position = 0)]
+    [ArgumentCompleter(typeof(NativeCommandCompleter))]
     public string? Command { get; set; }
 
     [Parameter(ParameterSetName = NormalParameterSet, ValueFromRemainingArguments = true, Position = 1)]
