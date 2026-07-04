@@ -44,4 +44,14 @@
   <data name="ConvertFromRawString.parameters.Delimiter" xml:space="preserve">
     <value>Adds a delimiter before each input string when multiple values are provided.</value>
   </data>
+  <!-- ConvertTo-RawString -->
+  <data name="ConvertToRawString.parameters.InputBytes" xml:space="preserve">
+    <value>Converts the input byte array to a string using the specified encoding.</value>
+  </data>
+  <data name="ConvertToRawString.parameters.Encoding" xml:space="preserve">
+    <value>Specifies the encoding used to convert bytes to a string.</value>
+  </data>
+  <data name="ConvertToRawString.parameters.Raw" xml:space="preserve">
+    <value>Outputs the string without formatting or newline normalization.</value>
+  </data>
 </root>

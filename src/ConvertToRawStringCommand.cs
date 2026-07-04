@@ -8,15 +8,16 @@ namespace Sashimi;
 [Alias("b2a")]
 public sealed class ConvertToRawStringCommand : RawCommandBase
 {
-    [Parameter(Mandatory = true, ValueFromPipeline = true, Position = 0)]
+    [Parameter(Mandatory = true, ValueFromPipeline = true, Position = 0,
+               HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "ConvertToRawString.parameters.InputBytes")]
     public byte[] InputBytes { get; set; } = null!;
 
-    [Parameter()]
+    [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "ConvertToRawString.parameters.Encoding")]
     [ArgumentCompleter(typeof(EncodingCompleter))]
     [Alias("e")]
     public string Encoding { get; set; } = "utf-8";
 
-    [Parameter()]
+    [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "ConvertToRawString.parameters.Raw")]
     [Alias("r")]
     public SwitchParameter Raw { get; set; }
 
