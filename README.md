@@ -29,26 +29,3 @@ Install-PSResource -Name Sashimi
 
 Sashimi requires PowerShell 7.6 or later.
 
-## 🗺️ Roadmap
-
-### Version 1.0 — Core foundation
-- [x] Stabilize `RawProcessRunner` API (async I/O, exit code, cancellation)
-- [x] Finalize `raw` command UX and parameter behavior
-- [x] Support ScriptBlock with “first statement only” execution rule
-- [x] Implement `ConvertTo-RawString` / `ConvertFrom-RawString` for encoding transforms
-- [x] Ensure consistent byte[] pipeline behavior across platforms
-- [x] Document core usage and module structure
-
-### Version 2.0 — Pipeline integration
-- [ ] Introduce internal `rawInternal` command (not exported)
-- [ ] Parse ScriptBlock pipeline and map to PowerShell pipeline
-- [ ] Enable: `raw { cmd1 | cmd2 }` → `rawInternal cmd1 | rawInternal cmd2`
-- [ ] Stream stdin/stdout between external processes naturally
-- [ ] Improve error handling and diagnostics for pipeline mode
-
-### Version 3.0 — HexDump integration
-- [ ] Integrate HexDump as an official Sashimi component
-- [ ] Provide unified byte[] visualization (`Show-HexDump`)
-- [ ] Enable natural chaining: `raw { ... } | Show-HexDump`
-- [ ] Consolidate documentation and examples for the full I/O workflow
-
