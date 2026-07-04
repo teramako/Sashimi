@@ -34,4 +34,14 @@
   <data name="InvokeRawCommand.parameters.Encoding" xml:space="preserve">
     <value>Specifies the encoding used for input and output strings.</value>
   </data>
+  <!-- ConvertFrom-RawString -->
+  <data name="ConvertFromRawString.parameters.InputString" xml:space="preserve">
+    <value>Converts the input string to a byte array using the specified encoding.</value>
+  </data>
+  <data name="ConvertFromRawString.parameters.Encoding" xml:space="preserve">
+    <value>Specifies the encoding used to convert the string to bytes.</value>
+  </data>
+  <data name="ConvertFromRawString.parameters.Delimiter" xml:space="preserve">
+    <value>Adds a delimiter before each input string when multiple values are provided.</value>
+  </data>
 </root>
