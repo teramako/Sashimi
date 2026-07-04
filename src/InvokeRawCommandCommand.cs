@@ -30,28 +30,32 @@ public class InvokeRawCommandCommand : RawCommandBase
     private const string NormalParameterSet = "Normal";
     private const string ScriptBlockParameterSet = "ScriptBlock";
 
-    [Parameter(ParameterSetName = NormalParameterSet, Mandatory = true, Position = 0)]
+    [Parameter(ParameterSetName = NormalParameterSet, Mandatory = true, Position = 0,
+               HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Command")]
     [ArgumentCompleter(typeof(NativeCommandCompleter))]
     public string? Command { get; set; }
 
-    [Parameter(ParameterSetName = NormalParameterSet, ValueFromRemainingArguments = true, Position = 1)]
+    [Parameter(ParameterSetName = NormalParameterSet, ValueFromRemainingArguments = true, Position = 1,
+               HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Arguments")]
     public string[] Arguments { get; set; } = [];
 
-    [Parameter(ParameterSetName = ScriptBlockParameterSet, Mandatory = true, Position = 0)]
+    [Parameter(ParameterSetName = ScriptBlockParameterSet, Mandatory = true, Position = 0,
+               HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Script")]
     public ScriptBlock? Script { get; set; }
 
-    [Parameter(ValueFromPipeline = true)]
+    [Parameter(ValueFromPipeline = true,
+               HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.InputBytes")]
     public byte[]? InputBytes { get; set; }
 
-    [Parameter()]
+    [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Output")]
     [Alias("o")]
     public OutputType Output { get; set; } = OutputType.Stdout;
 
-    [Parameter()]
+    [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.AsString")]
     [Alias("s")]
     public SwitchParameter AsString { get; set; }
 
-    [Parameter()]
+    [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Encoding")]
     [ArgumentCompleter(typeof(EncodingCompleter))]
     [Alias("e")]
     public string Encoding { get; set; } = "UTF-8";

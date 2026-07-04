@@ -12,4 +12,26 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <!-- Invoke-RawCommand -->
+  <data name="InvokeRawCommand.parameters.Command" xml:space="preserve">
+    <value>Specifies the native command to execute.</value>
+  </data>
+  <data name="InvokeRawCommand.parameters.Arguments" xml:space="preserve">
+    <value>Provides additional arguments for the command.</value>
+  </data>
+  <data name="InvokeRawCommand.parameters.Script" xml:space="preserve">
+    <value>Specifies the ScriptBlock to execute.</value>
+  </data>
+  <data name="InvokeRawCommand.parameters.InputBytes" xml:space="preserve">
+    <value>Sends raw input bytes from the pipeline to the command.</value>
+  </data>
+  <data name="InvokeRawCommand.parameters.Output" xml:space="preserve">
+    <value>Selects which output stream to capture (stdout or stderr).</value>
+  </data>
+  <data name="InvokeRawCommand.parameters.AsString" xml:space="preserve">
+    <value>Returns the output as a UTF-8 string.</value>
+  </data>
+  <data name="InvokeRawCommand.parameters.Encoding" xml:space="preserve">
+    <value>Specifies the encoding used for input and output strings.</value>
+  </data>
 </root>
