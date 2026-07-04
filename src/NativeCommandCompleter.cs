@@ -4,7 +4,10 @@ using System.Management.Automation.Language;
 
 namespace Sashimi;
 
-public class NativeCommandCompleter : IArgumentCompleter
+/// <summary>
+/// Provides argument completion for native executables
+/// (excluding cmdlets, functions, and aliases).
+/// </summary>
 internal class NativeCommandCompleter : IArgumentCompleter
 {
     public IEnumerable<CompletionResult> CompleteArgument(string commandName,

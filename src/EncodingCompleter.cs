@@ -6,7 +6,11 @@ using EncodingItem = (string Name, int CodePage, string DisplayName);
 
 namespace Sashimi;
 
-public class EncodingCompleter : IArgumentCompleter
+/// <summary>
+/// Provides argument completion for all installed encodings,
+/// including common aliases. Also provides a helper method to
+/// resolve an <see cref="Encoding"/> instance from a completed value.
+/// </summary>
 internal class EncodingCompleter : IArgumentCompleter
 {
     public IEnumerable<CompletionResult> CompleteArgument(string commandName,
@@ -68,6 +72,9 @@ internal class EncodingCompleter : IArgumentCompleter
             ["UTF16"]  = ("UTF16", 1200, "Alias to Unicode (UTF-16)"),
         };
 
+    /// <summary>
+    /// Get <see cref="Encoding"/> from the completed value.
+    /// </summary>
     /// <exception cref="ArgumentException"></exception>
     public static Encoding GetEncoding(string name)
     {
