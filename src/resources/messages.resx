@@ -54,4 +54,17 @@
   <data name="ConvertToRawString.parameters.Raw" xml:space="preserve">
     <value>Outputs the string without formatting or newline normalization.</value>
   </data>
+  <!-- Out-RawFile -->
+  <data name="OutRawFile.parameters.Path" xml:space="preserve">
+    <value>Specifies the file path to write the output bytes to.</value>
+  </data>
+  <data name="OutRawFile.parameters.InputBytes" xml:space="preserve">
+    <value>Writes the input byte array to the specified file.</value>
+  </data>
+  <data name="OutRawFile.parameters.Append" xml:space="preserve">
+    <value>Appends the bytes to the file instead of overwriting it.</value>
+  </data>
+  <data name="OutRawFile.parameters.PassThru" xml:space="preserve">
+    <value>Returns the written byte array to the pipeline.</value>
+  </data>
 </root>
