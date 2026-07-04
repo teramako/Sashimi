@@ -29,3 +29,20 @@ Install-PSResource -Name Sashimi
 
 Sashimi requires PowerShell 7.6 or later.
 
+## Examples
+
+### 🌐 Common (Windows / Linux / macOS)
+
+#### Get image data and to Sixel
+
+```powershell
+raw { curl https://..../image.png -s } | raw -s img2sixel
+```
+
+#### Upload resized image via raw binary Pipeline
+
+```powershell
+raw convert ./image.png -resize 32x32 - |
+  raw curl -X POST --data-binary @- https://example.com/upload
+```
+
