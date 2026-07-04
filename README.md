@@ -46,3 +46,56 @@ raw convert ./image.png -resize 32x32 - |
   raw curl -X POST --data-binary @- https://example.com/upload
 ```
 
+### 🪟 Windows-specific
+
+#### Correctly Converting `wsl.exe` command's output to a String
+
+```powershell
+raw -s -e utf-16 wsl.exe --list | select -Skip 1
+```
+
+output:
+```
+Ubuntu (既定値)
+```
+
+#### Correctly Converting `winget.exe` command's output to a String
+
+```powershell
+raw -s winget.exe list | ? { $_ -like "Windows *" }
+```
+
+output:
+```
+Windows App Runtime DDLM 3.469.1654.0-x6    MSIX\Microsoft.WinAppRuntime.DDLM.***  3.***
+Windows Package Manager Source (winget) V2  MSIX\Microsoft.Winget.Source***        2026.***
+Windows Subsystem for Linux Update          ARP\Machine\X64\***                    5.***
+Windows Web Experience Pack                 MSIX\MicrosoftWindows.Client.***       526.***
+...
+Windows メモ帳                              MSIX\Microsoft.WindowsNotepad***       11.***
+Windows 電卓                                MSIX\Microsoft.WindowsCalculator***    11.***
+```
+
+#### Export certificate binary directly from the Cert: drive with `bout` (`Out-RawFile`)
+
+```powershell
+Get-ChildItem Cert:\CurrentUser\Root |
+  ? FriendlyName -like "VeriSign*" |
+  % { $_.RawData | bout ("{0}.crt" -f $_.FriendlyName) } -End {
+      Get-ChildItem *.crt
+    }
+```
+
+output:
+```
+
+    Directory: D:\***
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a---          2026/07/04    16:04            576 VeriSign Class 3 Public Primary CA.crt
+-a---          2026/07/04    16:04            704 VeriSign Time Stamping CA.crt
+-a---          2026/07/04    16:04           1239 VeriSign.crt
+
+```
+
