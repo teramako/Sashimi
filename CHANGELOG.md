@@ -3,7 +3,9 @@
 ## [Unreleased]
 
 ### Added
-- Added `EncodingCompleter` for `-Encoding` argument completion.
+- Added `NativeCommandCompleter` for `-Command` argument completion in `Invoke-RawCommand`.
+  - Provides completion for native executables. (excludes cmdlets, functions and aliases).
+- Added `EncodingCompleter` for `-Encoding` argument completion in `Invoke-RawCommand`, `ConvertTo-RawString` and `ConvertFrom-RawString`.
   - Provides completion for all installed encodings.
   - Includes alias completion and descriptive tooltips (code page, display name).
 - Added `-Encoding` parameter to control decoding of stdout/stderr (default: UTF-8).
