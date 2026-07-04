@@ -7,6 +7,7 @@ using EncodingItem = (string Name, int CodePage, string DisplayName);
 namespace Sashimi;
 
 public class EncodingCompleter : IArgumentCompleter
+internal class EncodingCompleter : IArgumentCompleter
 {
     public IEnumerable<CompletionResult> CompleteArgument(string commandName,
                                                           string parameterName,

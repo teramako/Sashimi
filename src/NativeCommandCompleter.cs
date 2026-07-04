@@ -5,6 +5,7 @@ using System.Management.Automation.Language;
 namespace Sashimi;
 
 public class NativeCommandCompleter : IArgumentCompleter
+internal class NativeCommandCompleter : IArgumentCompleter
 {
     public IEnumerable<CompletionResult> CompleteArgument(string commandName,
                                                           string parameterName,
