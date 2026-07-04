@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## 1.2.0 - 2026-07-04
 
 ### Added
 - Added `NativeCommandCompleter` for `-Command` argument completion in `Invoke-RawCommand`.

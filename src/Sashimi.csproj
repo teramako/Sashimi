@@ -6,7 +6,6 @@
     <Nullable>enable</Nullable>
     <OutDir>../libs</OutDir>
     <VersionPrefix>1.2.0</VersionPrefix>
-    <VersionSuffix>preview.2</VersionSuffix>
 
     <AssemblyName>Sashimi</AssemblyName>
     <RootNamespace>Sashimi</RootNamespace>
