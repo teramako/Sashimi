@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <!-- Invoke-RawCommand -->
+  <data name="InvokeRawCommand.parameters.Command" xml:space="preserve">
+    <value>Specifies the native command to execute.</value>
+  </data>
+  <data name="InvokeRawCommand.parameters.Arguments" xml:space="preserve">
+    <value>Provides additional arguments for the command.</value>
+  </data>
+  <data name="InvokeRawCommand.parameters.Script" xml:space="preserve">
+    <value>Specifies the ScriptBlock to execute.</value>
+  </data>
+  <data name="InvokeRawCommand.parameters.InputBytes" xml:space="preserve">
+    <value>Sends raw input bytes from the pipeline to the command.</value>
+  </data>
+  <data name="InvokeRawCommand.parameters.Output" xml:space="preserve">
+    <value>Selects which output stream to capture (stdout or stderr).</value>
+  </data>
+  <data name="InvokeRawCommand.parameters.AsString" xml:space="preserve">
+    <value>Returns the output as a UTF-8 string.</value>
+  </data>
+  <data name="InvokeRawCommand.parameters.Encoding" xml:space="preserve">
+    <value>Specifies the encoding used for input and output strings.</value>
+  </data>
+  <!-- ConvertFrom-RawString -->
+  <data name="ConvertFromRawString.parameters.InputString" xml:space="preserve">
+    <value>Converts the input string to a byte array using the specified encoding.</value>
+  </data>
+  <data name="ConvertFromRawString.parameters.Encoding" xml:space="preserve">
+    <value>Specifies the encoding used to convert the string to bytes.</value>
+  </data>
+  <data name="ConvertFromRawString.parameters.Delimiter" xml:space="preserve">
+    <value>Adds a delimiter before each input string when multiple values are provided.</value>
+  </data>
+  <!-- ConvertTo-RawString -->
+  <data name="ConvertToRawString.parameters.InputBytes" xml:space="preserve">
+    <value>Converts the input byte array to a string using the specified encoding.</value>
+  </data>
+  <data name="ConvertToRawString.parameters.Encoding" xml:space="preserve">
+    <value>Specifies the encoding used to convert bytes to a string.</value>
+  </data>
+  <data name="ConvertToRawString.parameters.Raw" xml:space="preserve">
+    <value>Outputs the string without formatting or newline normalization.</value>
+  </data>
+  <!-- Out-RawFile -->
+  <data name="OutRawFile.parameters.Path" xml:space="preserve">
+    <value>Specifies the file path to write the output bytes to.</value>
+  </data>
+  <data name="OutRawFile.parameters.InputBytes" xml:space="preserve">
+    <value>Writes the input byte array to the specified file.</value>
+  </data>
+  <data name="OutRawFile.parameters.Append" xml:space="preserve">
+    <value>Appends the bytes to the file instead of overwriting it.</value>
+  </data>
+  <data name="OutRawFile.parameters.PassThru" xml:space="preserve">
+    <value>Returns the written byte array to the pipeline.</value>
+  </data>
+</root>
