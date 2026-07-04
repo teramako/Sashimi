@@ -12,6 +12,7 @@ public class NativeCommandCompleter : IArgumentCompleter
                                                           CommandAst commandAst,
                                                           IDictionary fakeBoundParameters)
     {
+        wordToComplete ??= string.Empty;
         return CompletionCompleters.CompleteCommand(wordToComplete, string.Empty, CommandTypes.Application);
     }
 }
