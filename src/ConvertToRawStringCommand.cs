@@ -8,14 +8,16 @@ namespace Sashimi;
 [Alias("b2a")]
 public sealed class ConvertToRawStringCommand : RawCommandBase
 {
-    [Parameter(Mandatory = true, ValueFromPipeline = true, Position = 0)]
+    [Parameter(Mandatory = true, ValueFromPipeline = true, Position = 0,
+               HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "ConvertToRawString.parameters.InputBytes")]
     public byte[] InputBytes { get; set; } = null!;
 
-    [Parameter()]
+    [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "ConvertToRawString.parameters.Encoding")]
+    [ArgumentCompleter(typeof(EncodingCompleter))]
     [Alias("e")]
     public string Encoding { get; set; } = "utf-8";
 
-    [Parameter()]
+    [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "ConvertToRawString.parameters.Raw")]
     [Alias("r")]
     public SwitchParameter Raw { get; set; }
 
@@ -30,9 +32,16 @@ public sealed class ConvertToRawStringCommand : RawCommandBase
 
     protected override void BeginProcessing()
     {
-        var encoding = System.Text.Encoding.GetEncoding(Encoding);
-        _decoder = encoding.GetDecoder();
-        WriteVerboseRaw($"Set encoding: {encoding.WebName} [{encoding.EncodingName}]");
+        try
+        {
+            var encoding = EncodingCompleter.GetEncoding(Encoding);
+            _decoder = encoding.GetDecoder();
+            WriteVerboseRaw($"Set encoding: {encoding.WebName} [{encoding.EncodingName}]");
+        }
+        catch(Exception ex)
+        {
+            ThrowTerminatingError(new(ex, "InvalidEncoding", ErrorCategory.InvalidArgument, this));
+        }
     }
 
     protected override void ProcessRecord()

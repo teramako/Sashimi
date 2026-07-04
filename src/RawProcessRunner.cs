@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace Sashimi;
 
@@ -9,6 +11,25 @@ namespace Sashimi;
 /// </summary>
 public sealed class RawProcessRunner : IAsyncDisposable
 {
+#if DEBUG
+    public record DebugMsg(TimeSpan TimeSpan, int Pid, string Category, string Source, object Message)
+    {
+        public override string ToString()
+            => $"({TimeSpan})[{Pid}]{Source,-25} {Category,10}: {Message}";
+    }
+    private readonly Stopwatch _sw = new();
+    private readonly ConcurrentQueue<DebugMsg> _messages = new();
+    public DebugMsg[] DebugMsgs => _messages.ToArray();
+#endif
+
+    [Conditional("DEBUG")]
+    public void Log(object msg, string category, [CallerMemberName] string callerMethodName = "", [CallerLineNumber] int callerLineNumber = 0)
+    {
+#if DEBUG
+        _messages.Enqueue(new(_sw.Elapsed, _pid, category, $"{callerMethodName}:{callerLineNumber}", msg));
+#endif
+    }
+
     /// <summary>
     /// Creates a <see cref="ProcessStartInfo"/> configured for raw I/O:
     /// shell disabled, and stdin/stdout/stderr redirected.
@@ -34,6 +55,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
     }
 
     private readonly Process _process;
+    private int _pid = -1;
     private const int BufferSize = 4096;
     private Task _outputTask = null!;
     private CancellationTokenRegistration? _killRegistration;
@@ -47,13 +69,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
     /// Gets the process ID after the process has started.
     /// Throws <see cref="InvalidOperationException"/> if accessed before <see cref="StartAsync"/>.
     /// </summary>
-    public int Pid
-    {
-        get => field == -1
-               ? throw new InvalidOperationException("Process has not been started yet.")
-               : field;
-        private set;
-    } = -1;
+    public int Pid => _pid;
 
     /// <inheritdoc cref="Process.StartTime"/>
     public DateTime StartTime { get; private set; }
@@ -88,6 +104,11 @@ public sealed class RawProcessRunner : IAsyncDisposable
     public void Start(CancellationToken cancellationToken = default)
     {
         _process.Start();
+#if DEBUG
+        _sw.Start();
+#endif
+        _pid = _process.Id;
+        Log("Started", "process");
         try
         {
             StartTime = _process.StartTime.ToUniversalTime();
@@ -99,11 +120,15 @@ public sealed class RawProcessRunner : IAsyncDisposable
         }
 
         // Ensure the process terminates properly upon cancellation
-        _killRegistration = cancellationToken.Register(() => Kill());
+        _killRegistration = cancellationToken.Register(() =>
+        {
+            Log("Killing on cancellationToken", "lifecycle");
+            Kill();
+        });
 
-        _outputTask = Task.WhenAll(ReadStdoutLoop(cancellationToken),
-                                   ReadStderrLoop(cancellationToken));
-        Pid = _process.Id;
+        _outputTask = Task.Run(async () =>
+            await Task.WhenAll(ReadStdoutLoop(cancellationToken),
+                               ReadStderrLoop(cancellationToken)));
     }
 
     /// <summary>
@@ -111,24 +136,16 @@ public sealed class RawProcessRunner : IAsyncDisposable
     /// </summary>
     public Task WriteStdinAsync(byte[] buffer, CancellationToken cancellationToken = default)
     {
+        Log($"Read StdIn: {buffer.Length} bytes", "stdin");
         return _process.StandardInput.BaseStream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
     }
-
-    /// <summary>
-    /// Blocks until both stdout and stderr reading tasks complete.
-    /// </summary>
-    /// <param name="cancellationToken">
-    /// Cancels the wait operation.  
-    /// Does not kill the process; use <see cref="Kill"/> for that.
-    /// </param>
-    public Task WaitOutputAsync(CancellationToken cancellationToken = default)
-        => _outputTask.WaitAsync(cancellationToken);
 
     /// <summary>
     /// Closes the process's standard input stream, signaling end-of-input.
     /// </summary>
     public void CloseStdin()
     {
+        Log("Close StdIn", "lifecycle");
         _process.StandardInput.Close();
     }
 
@@ -146,11 +163,14 @@ public sealed class RawProcessRunner : IAsyncDisposable
             int read;
             while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
             {
+                Log($"OnStdout: {read} bytes", "stdout");
                 OnStdout?.Invoke(buffer.AsSpan(0, read).ToArray());
             }
+            Log($"End OnStdout", "stderr");
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
+            Log(ex, "exception");
             // quiet stop on cancellation
         }
     }
@@ -169,11 +189,14 @@ public sealed class RawProcessRunner : IAsyncDisposable
             int read;
             while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
             {
+                Log($"OnStderr: {read} bytes", "stderr");
                 OnStderr?.Invoke(buffer.AsSpan(0, read).ToArray());
             }
+            Log($"End OnStderr", "stderr");
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
+            Log(ex, "exception");
             // quiet stop on cancellation
         }
     }
@@ -188,14 +211,74 @@ public sealed class RawProcessRunner : IAsyncDisposable
         {
             _process.Kill(entireProcessTree: true);
             ExitTime = _process.ExitTime.ToUniversalTime();
+            Log("Killed", "process");
         }
-        catch
+        catch(Exception ex)
         {
+            Log(ex, "exception");
+        }
+    }
+
+    /// <summary>
+    /// Blocks until both stdout and stderr reading tasks complete.
+    /// <para>
+    /// This ensures that all output has been fully read before closing the underlying streams.
+    /// Closing the streams only after the read loops finish prevents race conditions and
+    /// ObjectDisposedException that can occur if the streams are closed prematurely.
+    /// </para>
+    /// </summary>
+    /// <param name="cancellationToken">
+    /// Cancels the wait operation.  
+    /// Does not kill the process; use <see cref="Kill"/> for that.
+    /// </param>
+    /// <exception cref="Exception">
+    /// Thrown when either the stdout or stderr read loop fails.
+    /// The exception originates from ReadStdoutLoop or ReadStderrLoop and is
+    /// rethrown after being logged.
+    /// </exception>
+    public async Task WaitOutputAsync(CancellationToken cancellationToken = default)
+    {
+        Log("Waiting end of output ...", "lifecycle");
+        if (_outputTask is not null)
+        {
+            try
+            {
+                await _outputTask.WaitAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Log(ex, "exception");
+                throw;
+            }
+        }
+
+        try
+        {
+            _process.StandardOutput.BaseStream.Close();
+            Log("Closed stdout", "lifecycle");
+        }
+        catch (Exception ex)
+        {
+            Log(ex, "stdout");
+        }
+
+        try
+        {
+            _process.StandardError.BaseStream.Close();
+            Log("Closed stderr", "lifecycle");
+        }
+        catch (Exception ex)
+        {
+            Log(ex, "stderr");
         }
     }
 
     /// <summary>
     /// Asynchronously waits for the process to exit.
+    /// <para>
+    /// This does not wait for stdout/stderr to finish reading; use WaitOutputAsync or
+    /// WaitForCompleteAsync to ensure that all output has been fully consumed.
+    /// </para>
     /// </summary>
     /// <param name="cancellationToken">
     /// Cancels the wait operation.  
@@ -204,9 +287,41 @@ public sealed class RawProcessRunner : IAsyncDisposable
     /// <returns>The process exit code.</returns>
     public async Task<int> WaitForExitAsync(CancellationToken cancellationToken = default)
     {
+        Log("Waiting for exit...", "lifecycle");
         await _process.WaitForExitAsync(cancellationToken);
         ExitTime = _process.ExitTime.ToUniversalTime();
+        Log($"Exit [{_process.ExitCode}]", "process");
         return _process.ExitCode;
+    }
+
+    /// <summary>
+    /// Waits for both the process to exit and all stdout/stderr output to be fully consumed.
+    /// <para>
+    /// This method guarantees the correct completion order:
+    /// <list type="number">
+    ///     <item>Process exit</item>
+    ///     <item>stdout/stderr read loops finish (EOF)</item>
+    ///     <item>Streams are safely closed</item>
+    /// </list>
+    /// When using PipeStream, this method provides the only safe way to ensure that
+    /// stringReaderTask can observe EOF and terminate without deadlocks or race conditions.
+    /// </para>
+    /// </summary>
+    /// <param name="cancellationToken">
+    /// Cancels the wait operation.  
+    /// Does not kill the process; use <see cref="Kill"/> to terminate it.
+    /// </param>
+    /// <returns>The process exit code.</returns>
+    /// <exception cref="Exception">
+    /// Thrown when either the stdout or stderr read loop fails.
+    /// This method awaits both process exit and output completion, and will
+    /// propagate any exception raised during output reading.
+    /// </exception>
+    public async Task<int> WaitForCompleteAsync(CancellationToken cancellationToken = default)
+    {
+        var exitCode = await WaitForExitAsync(cancellationToken);
+        await WaitOutputAsync(cancellationToken);
+        return exitCode;
     }
 
     /// <summary>
@@ -215,6 +330,7 @@ public sealed class RawProcessRunner : IAsyncDisposable
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
+        Log("Killing on disposint", "lifecycle");
         _killRegistration?.Dispose();
         Kill();
         try
@@ -222,9 +338,11 @@ public sealed class RawProcessRunner : IAsyncDisposable
             if (_outputTask is not null)
                 await _outputTask;
         }
-        catch
-        { }
+        catch(Exception ex)
+        {
+            Log(ex, "exception");
+        }
         _process.Dispose();
-        Pid = -1;
+        _pid = -1;
     }
 }

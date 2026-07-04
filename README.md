@@ -17,26 +17,85 @@ Sashimi provides commands that communicate with external processes at the byte-s
 | `ConvertTo-RawString`   | `b2a`  | Converts byte sequences to `string`s, one line at a time. |
 | `Out-RawFile`           | `bout` | Write byte sequences into a file. |
 
-## 🗺️ Roadmap
+## 🍣 Installation
 
-### Version 1.0 — Core foundation
-- [x] Stabilize `RawProcessRunner` API (async I/O, exit code, cancellation)
-- [x] Finalize `raw` command UX and parameter behavior
-- [x] Support ScriptBlock with “first statement only” execution rule
-- [x] Implement `ConvertTo-RawString` / `ConvertFrom-RawString` for encoding transforms
-- [x] Ensure consistent byte[] pipeline behavior across platforms
-- [x] Document core usage and module structure
+Sashimi can be installed from the PowerShell Gallery using *PSResourceGet*,
+the modern package manager included in PowerShell 7.6 and later.
 
-### Version 2.0 — Pipeline integration
-- [ ] Introduce internal `rawInternal` command (not exported)
-- [ ] Parse ScriptBlock pipeline and map to PowerShell pipeline
-- [ ] Enable: `raw { cmd1 | cmd2 }` → `rawInternal cmd1 | rawInternal cmd2`
-- [ ] Stream stdin/stdout between external processes naturally
-- [ ] Improve error handling and diagnostics for pipeline mode
+### PowerShell 7.6+ (recommended)
+```powershell
+Install-PSResource -Name Sashimi
+```
 
-### Version 3.0 — HexDump integration
-- [ ] Integrate HexDump as an official Sashimi component
-- [ ] Provide unified byte[] visualization (`Show-HexDump`)
-- [ ] Enable natural chaining: `raw { ... } | Show-HexDump`
-- [ ] Consolidate documentation and examples for the full I/O workflow
+Sashimi requires PowerShell 7.6 or later.
+
+## Examples
+
+### 🌐 Common (Windows / Linux / macOS)
+
+#### Get image data and to Sixel
+
+```powershell
+raw { curl https://..../image.png -s } | raw -s img2sixel
+```
+
+#### Upload resized image via raw binary Pipeline
+
+```powershell
+raw convert ./image.png -resize 32x32 - |
+  raw curl -X POST --data-binary @- https://example.com/upload
+```
+
+### 🪟 Windows-specific
+
+#### Correctly Converting `wsl.exe` command's output to a String
+
+```powershell
+raw -s -e utf-16 wsl.exe --list | select -Skip 1
+```
+
+output:
+```
+Ubuntu (既定値)
+```
+
+#### Correctly Converting `winget.exe` command's output to a String
+
+```powershell
+raw -s winget.exe list | ? { $_ -like "Windows *" }
+```
+
+output:
+```
+Windows App Runtime DDLM 3.469.1654.0-x6    MSIX\Microsoft.WinAppRuntime.DDLM.***  3.***
+Windows Package Manager Source (winget) V2  MSIX\Microsoft.Winget.Source***        2026.***
+Windows Subsystem for Linux Update          ARP\Machine\X64\***                    5.***
+Windows Web Experience Pack                 MSIX\MicrosoftWindows.Client.***       526.***
+...
+Windows メモ帳                              MSIX\Microsoft.WindowsNotepad***       11.***
+Windows 電卓                                MSIX\Microsoft.WindowsCalculator***    11.***
+```
+
+#### Export certificate binary directly from the Cert: drive with `bout` (`Out-RawFile`)
+
+```powershell
+Get-ChildItem Cert:\CurrentUser\Root |
+  ? FriendlyName -like "VeriSign*" |
+  % { $_.RawData | bout ("{0}.crt" -f $_.FriendlyName) } -End {
+      Get-ChildItem *.crt
+    }
+```
+
+output:
+```
+
+    Directory: D:\***
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a---          2026/07/04    16:04            576 VeriSign Class 3 Public Primary CA.crt
+-a---          2026/07/04    16:04            704 VeriSign Time Stamping CA.crt
+-a---          2026/07/04    16:04           1239 VeriSign.crt
+
+```
 

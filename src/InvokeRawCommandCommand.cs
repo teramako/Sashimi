@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO.Pipes;
 using System.Management.Automation;
 using System.Management.Automation.Language;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Sashimi;
@@ -17,6 +19,7 @@ public enum OutputType
 internal abstract record RawOutputItem;
 internal record ChunkOutput(byte[] Value) : RawOutputItem;
 internal record StringOutput(string Value) : RawOutputItem;
+internal record InformationOutput(InformationRecord Value) : RawOutputItem;
 
 [Cmdlet(VerbsLifecycle.Invoke, "RawCommand", DefaultParameterSetName = NormalParameterSet)]
 [Alias("raw")]
@@ -27,25 +30,38 @@ public class InvokeRawCommandCommand : RawCommandBase
     private const string NormalParameterSet = "Normal";
     private const string ScriptBlockParameterSet = "ScriptBlock";
 
-    [Parameter(ParameterSetName = NormalParameterSet, Mandatory = true, Position = 0)]
+    [Parameter(ParameterSetName = NormalParameterSet, Mandatory = true, Position = 0,
+               HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Command")]
+    [ArgumentCompleter(typeof(NativeCommandCompleter))]
     public string? Command { get; set; }
 
-    [Parameter(ParameterSetName = NormalParameterSet, ValueFromRemainingArguments = true, Position = 1)]
+    [Parameter(ParameterSetName = NormalParameterSet, ValueFromRemainingArguments = true, Position = 1,
+               HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Arguments")]
     public string[] Arguments { get; set; } = [];
 
-    [Parameter(ParameterSetName = ScriptBlockParameterSet, Mandatory = true, Position = 0)]
+    [Parameter(ParameterSetName = ScriptBlockParameterSet, Mandatory = true, Position = 0,
+               HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Script")]
     public ScriptBlock? Script { get; set; }
 
-    [Parameter(ValueFromPipeline = true)]
+    [Parameter(ValueFromPipeline = true,
+               HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.InputBytes")]
     public byte[]? InputBytes { get; set; }
 
-    [Parameter()]
+    [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Output")]
     [Alias("o")]
     public OutputType Output { get; set; } = OutputType.Stdout;
 
-    [Parameter()]
+    [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.AsString")]
     [Alias("s")]
     public SwitchParameter AsString { get; set; }
+
+    [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Encoding")]
+    [ArgumentCompleter(typeof(EncodingCompleter))]
+    [Alias("e")]
+    public string Encoding { get; set; } = "UTF-8";
+
+    private Encoding _encoding = System.Text.Encoding.UTF8;
+    private Decoder? _stderrDecoder;
 
     private RawProcessRunner _processRunner = null!;
 
@@ -73,6 +89,27 @@ public class InvokeRawCommandCommand : RawCommandBase
         }
     }
 
+    private void OnErrorChunk(byte[] chunk)
+    {
+        if (_stderrDecoder is null)
+            return;
+
+        PrintDebug($"Write StdErr: {chunk.Length} bytes");
+        var charCount = _stderrDecoder.GetCharCount(chunk, false);
+        Span<char> text = stackalloc char[charCount];
+        _stderrDecoder.Convert(chunk, text, false, out _, out var charsUsed, out _);
+        var record = new InformationRecord($"{PSStyle.Instance.Formatting.Error}{text[..charsUsed].TrimEnd("\r\n")}{PSStyle.Instance.Reset}",
+                                           $"{_processRunner.Name} (PID: {_processRunner.Pid})");
+        record.Tags.AddRange("PSHOST", "stderr");
+        _output.Add(new InformationOutput(record));
+
+        // NOTE:
+        // We intentionally do NOT flush the stderr decoder at stream end.
+        // Any remaining bytes in the decoder represent incomplete or undecodable sequences.
+        // Flushing would emit fallback characters, which is undesirable:
+        // stderr should show only successfully decoded text, and undecodable bytes are ignored rather than replaced.
+    }
+
     private async Task AsyncDecode(Stream stream, Encoding encoding)
     {
         using var sr = new StreamReader(stream, encoding);
@@ -97,6 +134,16 @@ public class InvokeRawCommandCommand : RawCommandBase
 
     protected override void BeginProcessing()
     {
+        try
+        {
+            _encoding = EncodingCompleter.GetEncoding(Encoding);
+            _stderrDecoder = _encoding.GetDecoder();
+        }
+        catch (Exception ex)
+        {
+            ThrowTerminatingError(new(ex, "InvalidEncoding", ErrorCategory.InvalidArgument, this));
+        }
+
         var cmdInfo = GetCommandAndArguments();
         _processRunner = new RawProcessRunner(cmdInfo.Path, cmdInfo.Arguments);
 
@@ -112,8 +159,12 @@ public class InvokeRawCommandCommand : RawCommandBase
             {
                 _processRunner.OnStderr += OnOutputChunkAsString;
             }
-            WriteVerboseRaw("Set encoding: UTF-8");
-            _stringReaderTask = AsyncDecode(_stringClient, Encoding.UTF8);
+            else
+            {
+                _processRunner.OnStderr += OnErrorChunk;
+            }
+            WriteVerboseRaw($"Set encoding: {_encoding.WebName} [{_encoding.EncodingName}]");
+            _stringReaderTask = AsyncDecode(_stringClient, _encoding);
         }
         else
         {
@@ -124,6 +175,10 @@ public class InvokeRawCommandCommand : RawCommandBase
             if (Output.HasFlag(OutputType.Stderr))
             {
                 _processRunner.OnStderr += OnOutputChunk;
+            }
+            else
+            {
+                _processRunner.OnStderr += OnErrorChunk;
             }
         }
         _processRunner.Start(PipelineStopToken);
@@ -147,6 +202,8 @@ public class InvokeRawCommandCommand : RawCommandBase
         _processRunner.Kill();
         _stringServer?.Dispose();
         _stringClient?.Dispose();
+
+        PrintDebugMessages();
     }
 
     protected override void EndProcessing()
@@ -157,28 +214,35 @@ public class InvokeRawCommandCommand : RawCommandBase
         }
         _processRunner.CloseStdin();
 
-        var exitTask = _processRunner.WaitForExitAsync(PipelineStopToken);
-        Task[] tasks;
+        Task<int> exitTask;
 
         if (AsString)
         {
-            tasks = [
-                _stringReaderTask!,
-                Task.Run(async () =>
-                {
-                    PrintDebug($"Wait process runner's output to finish");
-                    await _processRunner.WaitOutputAsync(PipelineStopToken);
-                    _stringServer?.Close();
-                }),
-                exitTask,
-            ];
+            exitTask = Task.Run(async () =>
+            {
+                PrintDebug($"Wait process runner's output to finish");
+                var exitCode = await _processRunner.WaitForCompleteAsync(PipelineStopToken);
+                _stringServer?.Close();
+                if (_stringReaderTask is not null)
+                    await _stringReaderTask;
+                return exitCode;
+            });
 
             int lineCount = 0;
-            foreach (StringOutput line in _output.GetConsumingEnumerable(PipelineStopToken))
+            foreach (var output in _output.GetConsumingEnumerable(PipelineStopToken))
             {
-                lineCount++;
-                PrintDebug($"Output line: [{lineCount}] {line.Value}");
-                WriteObject(line.Value);
+                switch (output)
+                {
+                    case StringOutput line:
+                        lineCount++;
+                        PrintDebug($"Output line: [{lineCount}] {line.Value}");
+                        WriteObject(line.Value);
+                        break;
+                    case InformationOutput info:
+                        PrintDebug($"Output Information: {info.Value}");
+                        WriteInformation(info.Value);
+                        break;
+                }
             }
 
             if (lineCount > 0)
@@ -188,25 +252,32 @@ public class InvokeRawCommandCommand : RawCommandBase
         }
         else
         {
-            tasks = [
-                Task.Run(async () =>
-                {
-                    PrintDebug($"Wait process runner's output to finish");
-                    await _processRunner.WaitOutputAsync(PipelineStopToken);
-                    PrintDebug("Complete queueInput");
-                    _output.CompleteAdding();
-                }),
-                exitTask,
-            ];
+            exitTask = Task.Run(async () =>
+            {
+                PrintDebug($"Wait process runner's output to finish");
+                var exitCode = await _processRunner.WaitForCompleteAsync(PipelineStopToken);
+                PrintDebug("Complete queueInput");
+                _output.CompleteAdding();
+                return exitCode;
+            });
 
             long totalWriteBytes = 0;
             int writeCount = 0;
-            foreach (ChunkOutput chunk in _output.GetConsumingEnumerable(PipelineStopToken))
+            foreach (var output in _output.GetConsumingEnumerable(PipelineStopToken))
             {
-                totalWriteBytes += chunk.Value.Length;
-                writeCount++;
-                PrintDebug($"Output chunk: {chunk.Value.Length} bytes");
-                WriteObject(chunk.Value, false);
+                switch (output)
+                {
+                    case ChunkOutput chunk:
+                        totalWriteBytes += chunk.Value.Length;
+                        writeCount++;
+                        PrintDebug($"Output chunk: {chunk.Value.Length} bytes");
+                        WriteObject(chunk.Value, false);
+                        break;
+                    case InformationOutput info:
+                        PrintDebug($"Output Information: {info.Value}");
+                        WriteInformation(info.Value);
+                        break;
+                }
             }
 
             if (totalWriteBytes > 0)
@@ -217,13 +288,23 @@ public class InvokeRawCommandCommand : RawCommandBase
 
         try
         {
-            Task.WaitAll(tasks);
-        }
-        catch { }
-        var exitCode = exitTask.Result;
+            var exitCode = exitTask.GetAwaiter().GetResult();
+            WriteVerboseProcess($"End [ExitCode = {exitCode}] ({_processRunner.ExitTime.ToLocalTime():HH:mm:ss.fff}, Duration={_processRunner.ExitTime - _processRunner.StartTime}))");
+            SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
 
-        WriteVerboseProcess($"End [ExitCode = {exitCode}] ({_processRunner.ExitTime.ToLocalTime():HH:mm:ss.fff}, Duration={_processRunner.ExitTime - _processRunner.StartTime}))");
-        SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
+        }
+        catch (Exception ex)
+        {
+            SessionState.PSVariable.Set("LASTEXITCODE", 1);
+            ThrowTerminatingError(new ErrorRecord(ex,
+                                                  "RawCommandProcessCompletionFailed",
+                                                  ErrorCategory.OperationStopped,
+                                                  this));
+        }
+        finally
+        {
+            PrintDebugMessages();
+        }
     }
 
     private void WriteVerboseProcess(ReadOnlySpan<char> message)
@@ -263,5 +344,27 @@ public class InvokeRawCommandCommand : RawCommandBase
         ApplicationInfo GetAppInfo(string name)
             => InvokeCommand.GetCommand(name, CommandTypes.Application) as ApplicationInfo
                 ?? throw new InvalidOperationException($"raw: command '{name}' not found");
+    }
+
+    [Conditional("DEBUG")]
+    private void PrintDebugMessages()
+    {
+#if DEBUG
+        foreach (var msg in _processRunner.DebugMsgs)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Error.WriteLine(msg);
+        }
+        Console.ResetColor();
+#endif
+    }
+
+    [Conditional("DEBUG")]
+    protected new void PrintDebug(string msg,
+                                  ConsoleColor fg = ConsoleColor.DarkGray,
+                                  [CallerMemberName] string callerMethodName = "",
+                                  [CallerLineNumber] int callerLineNumber = 0)
+    {
+        _processRunner?.Log($"[{MyInvocation.MyCommand.Name}] {msg}", "cmdlet", callerMethodName, callerLineNumber);
     }
 }

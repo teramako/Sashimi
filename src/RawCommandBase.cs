@@ -21,6 +21,8 @@ public abstract class RawCommandBase : PSCmdlet
         Console.ResetColor();
     }
 
+    protected const string MessageBaseName = "Sashimi.resources.messages";
+
     private readonly Stopwatch _sw = Stopwatch.StartNew();
 
     protected void WriteVerboseRaw(ReadOnlySpan<char> message)

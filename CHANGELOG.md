@@ -1,6 +1,30 @@
 # Changelog
 
-## ## 1.1.1 - 2026-06-28
+## 1.2.0 - 2026-07-04
+
+### Added
+- Added `NativeCommandCompleter` for `-Command` argument completion in `Invoke-RawCommand`.
+  - Provides completion for native executables. (excludes cmdlets, functions and aliases).
+- Added `EncodingCompleter` for `-Encoding` argument completion in `Invoke-RawCommand`, `ConvertTo-RawString` and `ConvertFrom-RawString`.
+  - Provides completion for all installed encodings.
+  - Includes alias completion and descriptive tooltips (code page, display name).
+- Added `-Encoding` parameter to control decoding of stdout/stderr (default: UTF-8).
+- Added string-based stderr output: stderr byte chunks are now decoded using the specified encoding and emitted as `InformationRecord` with appropriate colorization and tags.
+
+### Improved
+- Refined process completion model to ensure correct ordering of *process exit → output EOF → safe stream close*.  
+  This eliminates race conditions when using PipeStream and guarantees stable shutdown behavior for `Invoke-RawCommand`.
+
+### Fixed
+- Fixed premature-close issues where stdout/stderr streams could be closed before read loops finished, causing occasional `ObjectDisposedException` or incomplete output consumption.
+- `Invoke-RawCommand` now waits on unified completion (`WaitForCompleteAsync`) ensuring that `stringReaderTask` always observes EOF and terminates cleanly.
+
+### Internal
+- Added `WaitForCompleteAsync` to `RawProcessRunner` to unify process-exit and output-completion waiting.
+- Strengthened `WaitOutputAsync` to close stdout/stderr only after read loops fully complete.
+- Updated `InvokeRawCommandCommand` to rely on the new completion model instead of manually coordinating multiple tasks.
+
+## 1.1.1 - 2026-06-28
 
 ### Fixed
 - Fixed a pipeline binding issue in `Invoke-RawCommand` where parameter-set

@@ -8,17 +8,20 @@ namespace Sashimi;
 [Alias("bout")]
 public sealed class OutRawFileCommand : RawCommandBase
 {
-    [Parameter(Mandatory = true, Position = 0)]
+    [Parameter(Mandatory = true, Position = 0,
+               HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "OutRawFile.parameters.Path")]
     public string Path { get; set; } = null!;
 
-    [Parameter(Mandatory = true, ValueFromPipeline = true)]
+    [Parameter(Mandatory = true, ValueFromPipeline = true,
+               HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "OutRawFile.parameters.InputBytes")]
     public byte[] InputBytes { get; set; } = null!;
 
-    [Parameter()]
+    [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "OutRawFile.parameters.Append")]
     [Alias("a")]
     public SwitchParameter Append { get; set; }
 
-    [Parameter(ParameterSetName = "PassThru", Mandatory = true)]
+    [Parameter(ParameterSetName = "PassThru", Mandatory = true,
+               HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "OutRawFile.parameters.PassThru")]
     [Alias("p")]
     public SwitchParameter PassThru { get; set; }
 
