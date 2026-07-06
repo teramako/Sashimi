@@ -189,11 +189,13 @@ internal class RawExecutionEngine
     [Conditional("DEBUG")]
     public void PrintDebugMessages()
     {
+#if DEBUG
         foreach (var msg in Runner.DebugMsgs)
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Error.WriteLine(msg);
         }
         Console.ResetColor();
+#endif
     }
 }
