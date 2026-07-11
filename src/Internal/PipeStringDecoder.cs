@@ -9,10 +9,10 @@ internal sealed class PipeStringDecoder : IAsyncDisposable
     private readonly AnonymousPipeServerStream _server;
     private readonly AnonymousPipeClientStream _client;
     private readonly Task _pipeTask;
-    private readonly BlockingCollection<RawOutputItem> _output;
+    private readonly BlockingCollection<RawOutputRecord> _output;
     private readonly OutputType _to;
 
-    public PipeStringDecoder(Encoding encoding, BlockingCollection<RawOutputItem> output, OutputType to)
+    public PipeStringDecoder(Encoding encoding, BlockingCollection<RawOutputRecord> output, OutputType to)
     {
         _output = output;
         _to = to;

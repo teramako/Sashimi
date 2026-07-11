@@ -25,7 +25,7 @@ internal sealed class RawExecutionEngine : ExecutionEngine
     public DateTime StartTime => _runner.StartTime;
     public DateTime ExitTime => _runner.ExitTime;
 
-    public BlockingCollection<RawOutputItem> Output { get; } = new(1024);
+    public BlockingCollection<RawOutputRecord> Output { get; } = new(1024);
 
     public RawExecutionEngine(InvokeRawCommandCommand cmdlet, string commandPath) : base(cmdlet)
     {
@@ -56,7 +56,31 @@ internal sealed class RawExecutionEngine : ExecutionEngine
         PrintDebugMessages();
     }
 
-    public override void EndProcessing() => WaitForExecute();
+    public override void EndProcessing()
+    {
+        var exitTask = WaitForExitAsync(PipelineStopToken);
+
+        OutputRecords();
+
+        try
+        {
+            var exitCode = exitTask.GetAwaiter().GetResult();
+            WriteVerboseRaw($"{_logPrefix} End [ExitCode = {exitCode}]"
+                            + $" ({ExitTime.ToLocalTime():HH:mm:ss.fff},"
+                            + $" Duration={ExitTime - StartTime}))");
+            Cmdlet.SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
+
+        }
+        catch
+        {
+            Cmdlet.SessionState.PSVariable.Set("LASTEXITCODE", 1);
+            throw;
+        }
+        finally
+        {
+            PrintDebugMessages();
+        }
+    }
 
     private void StartAsync(CancellationToken cancellationToken)
     {
@@ -157,9 +181,8 @@ internal sealed class RawExecutionEngine : ExecutionEngine
         return exitCode;
     }
 
-    private void WaitForExecute()
+    private void OutputRecords()
     {
-        var exitTask = WaitForExitAsync(PipelineStopToken);
         long totalWriteBytes = 0;
         int writeCount = 0;
         int lineCount = 0;
@@ -168,40 +191,10 @@ internal sealed class RawExecutionEngine : ExecutionEngine
             switch (output.To)
             {
                 case OutputType.Stdout:
-                    switch (output)
-                    {
-                        case StringOutput line:
-                            lineCount++;
-                            PrintDebug($"[{Cmdlet.MyCommandName}] Output line: [{lineCount}] {line.Value}");
-                            WriteObject(line.Value);
-                            break;
-                        case ChunkOutput chunk:
-                            totalWriteBytes += chunk.Value.Length;
-                            writeCount++;
-                            PrintDebug($"[{Cmdlet.MyCommandName}] Output chunk: {chunk.Value.Length} bytes");
-                            WriteObject(chunk.Value, false);
-                            break;
-                    }
+                    WriteOut(output);
                     break;
                 case OutputType.Stderr:
-                    InformationRecord record;
-                    switch (output)
-                    {
-                        case StringOutput line:
-                            PrintDebug($"[{Cmdlet.MyCommandName}] Error line: {line.Value}");
-                            record = new InformationRecord($"{PSStyle.Instance.Formatting.Error}{line.Value}{PSStyle.Instance.Reset}",
-                                                           $"{_runner.Name} (PID: {_runner.Pid})");
-                            record.Tags.AddRange("PSHOST", "stderr");
-                            WriteInformation(record);
-                            break;
-                        case ChunkOutput chunk:
-                            PrintDebug($"[{Cmdlet.MyCommandName}] Error chunk: {chunk.Value.Length} bytes");
-                            record = new InformationRecord($"{PSStyle.Instance.Formatting.Error}{string.Join(':', chunk.Value.Select(b => b.ToString("X2")))}{PSStyle.Instance.Reset}",
-                                                           $"{_runner.Name} (PID: {_runner.Pid})");
-                            record.Tags.AddRange("PSHOST", "stderr");
-                            WriteInformation(record);
-                            break;
-                    }
+                    WriteError(output);
                     break;
             }
         }
@@ -214,23 +207,41 @@ internal sealed class RawExecutionEngine : ExecutionEngine
             WriteVerboseRaw($"{_logPrefix} Output total: {totalWriteBytes}, count: {writeCount}");
         }
 
-        try
+        void WriteOut(RawOutputRecord output)
         {
-            var exitCode = exitTask.GetAwaiter().GetResult();
-            WriteVerboseRaw($"{_logPrefix} End [ExitCode = {exitCode}]"
-                            + $" ({ExitTime.ToLocalTime():HH:mm:ss.fff},"
-                            + $" Duration={ExitTime - StartTime}))");
-            Cmdlet.SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
+            switch (output)
+            {
+                case StringOutput line:
+                    lineCount++;
+                    PrintDebug($"[{Cmdlet.MyCommandName}] Output line: [{lineCount}] {line.Value}");
+                    WriteObject(line.Value);
+                    break;
+                case ChunkOutput chunk:
+                    totalWriteBytes += chunk.Value.Length;
+                    writeCount++;
+                    PrintDebug($"[{Cmdlet.MyCommandName}] Output chunk: {chunk.Value.Length} bytes");
+                    WriteObject(chunk.Value, false);
+                    break;
+            }
+        }
 
-        }
-        catch
+        void WriteError(RawOutputRecord output)
         {
-            Cmdlet.SessionState.PSVariable.Set("LASTEXITCODE", 1);
-            throw;
-        }
-        finally
-        {
-            PrintDebugMessages();
+#if DEBUG
+            switch (output)
+            {
+                case StringOutput line:
+                    PrintDebug($"[{Cmdlet.MyCommandName}] Error line: {line.Value}");
+                    break;
+                case ChunkOutput chunk:
+                    PrintDebug($"[{Cmdlet.MyCommandName}] Error chunk: {chunk.Value.Length} bytes");
+                    break;
+            }
+#endif
+            InformationRecord record = new($"{PSStyle.Instance.Formatting.Error}{output}{PSStyle.Instance.Reset}",
+                                           $"{_runner.Name} (PID: {_runner.Pid})");
+            record.Tags.AddRange("PSHOST", "stderr");
+            WriteInformation(record);
         }
     }
 
