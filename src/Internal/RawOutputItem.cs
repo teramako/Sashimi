@@ -1,11 +1,7 @@
-using System.Management.Automation;
-
 namespace Sashimi.Internal;
 
-internal abstract record RawOutputItem;
+internal abstract record RawOutputItem(OutputType To);
 
-internal record ChunkOutput(byte[] Value) : RawOutputItem;
+internal record ChunkOutput(byte[] Value, OutputType To) : RawOutputItem(To);
 
-internal record StringOutput(string Value) : RawOutputItem;
-
-internal record InformationOutput(InformationRecord Value) : RawOutputItem;
+internal record StringOutput(string Value, OutputType To) : RawOutputItem(To);
