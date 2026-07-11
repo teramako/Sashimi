@@ -5,6 +5,7 @@ using System.IO.Pipes;
 using System.Management.Automation;
 using System.Runtime.CompilerServices;
 using System.Text;
+using Sashimi.Internal;
 
 namespace Sashimi;
 

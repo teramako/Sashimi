@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
 using System.Management.Automation.Language;
+using Sashimi.Internal;
 
 namespace Sashimi;
 
