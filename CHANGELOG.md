@@ -8,6 +8,13 @@
   String input is now encoded using the encoding specified by `-Encoding` (default: UTF-8).
   This enables correct stdin handling for tools expecting non-UTF8 encodings such as Shift_JIS or EUC-JP.
 
+### Added
+
+- Introduced **ScriptBlock mode** for `Invoke-RawCommand`.
+  - Added `ScriptBlockExecutionEngine`, enabling raw execution inside `raw { ... }` blocks.
+  - External commands inside a ScriptBlock are now detected and rewritten to use `Invoke-RawCommand` automatically.
+  - This allows multi-statement ScriptBlocks to be executed without the previous single-command limitation.
+
 ## 1.3.0 - 2026-07-15
 
 ### Changed
