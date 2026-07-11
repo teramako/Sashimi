@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
 using System.Management.Automation.Language;
+using Sashimi.Internal;
 
 namespace Sashimi;
 
@@ -11,11 +12,6 @@ public enum OutputType
     Stderr = 2,
     Both = Stdout | Stderr
 }
-
-internal abstract record RawOutputItem;
-internal record ChunkOutput(byte[] Value) : RawOutputItem;
-internal record StringOutput(string Value) : RawOutputItem;
-internal record InformationOutput(InformationRecord Value) : RawOutputItem;
 
 [Cmdlet(VerbsLifecycle.Invoke, "RawCommand", DefaultParameterSetName = NormalParameterSet)]
 [Alias("raw")]

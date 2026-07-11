@@ -2,7 +2,7 @@ using System.Collections;
 using System.Management.Automation;
 using System.Management.Automation.Language;
 
-namespace Sashimi;
+namespace Sashimi.Internal;
 
 /// <summary>
 /// Provides argument completion for native executables

@@ -6,7 +6,7 @@ using System.Management.Automation;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace Sashimi;
+namespace Sashimi.Internal;
 
 internal sealed class RawExecutionEngine : ExecutionEngine
 {

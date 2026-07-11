@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- Changed `RawProcessRunner` from `public` to `internal` and moved it into the `Sashimi.Internal` namespace.
+  - This type is an implementation detail and was never intended to be part of the public API surface.
+  - If external code directly referenced `RawProcessRunner`, this constitutes a breaking change. Please migrate to the supported cmdlet-based APIs as needed.
+
+### Internal
+- Consolidated internal implementation types under the `Sashimi.Internal` namespace to clearly separate public API from internal architecture.
+- Moved internal types such as `RawExecutionEngine`, `ExecutionEngine`, `NativeCommandCompleter`, and `EncodingCompleter` into the `Internal/` directory.
+- Extracted `RawOutputItem` and related record types from `InvokeRawCommandCommand` and centralized them under `Sashimi.Internal`.
+
 ## 1.2.0 - 2026-07-04
 
 ### Added

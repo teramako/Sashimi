@@ -1,6 +1,6 @@
 using System.Management.Automation;
 
-namespace Sashimi;
+namespace Sashimi.Internal;
 
 internal abstract class ExecutionEngine(RawCommandBase cmdlet)
 {
