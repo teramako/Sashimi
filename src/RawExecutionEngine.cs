@@ -8,14 +8,16 @@ using System.Text;
 
 namespace Sashimi;
 
-internal class RawExecutionEngine
+internal sealed class RawExecutionEngine : ExecutionEngine
 {
+    private readonly RawProcessRunner _runner;
     private AnonymousPipeServerStream? _stringServer;
     private AnonymousPipeClientStream? _stringClient;
     private Task? _stringReaderTask;
     private Decoder _stderrDecoder;
     private long _totalReadBytes;
     private int _readCount;
+    private string _logPrefix => $"[{_runner.Pid}][{CommandPath}]";
 
     public string CommandPath { get; }
     public string[] Arguments { get; }
@@ -24,29 +26,44 @@ internal class RawExecutionEngine
     public bool AsString { get; }
     public OutputType OutputType { get; }
 
-    public DateTime StartTime => Runner.StartTime;
-    public DateTime ExitTime => Runner.ExitTime;
-    public string LogPrefix => $"[{Runner.Pid}][{CommandPath}]";
+    public DateTime StartTime => _runner.StartTime;
+    public DateTime ExitTime => _runner.ExitTime;
 
-    public RawProcessRunner Runner { get; }
     public BlockingCollection<RawOutputItem> Output { get; } = new(1024);
 
-    public RawExecutionEngine(string commandPath,
-                              string[] arguments,
-                              Encoding encoding,
-                              bool asString,
-                              OutputType outputType)
+    public RawExecutionEngine(InvokeRawCommandCommand cmdlet, string commandPath) : base(cmdlet)
     {
         CommandPath = commandPath;
-        Arguments = arguments;
-        Encoding = encoding;
-        AsString = asString;
-        OutputType = outputType;
-        _stderrDecoder = encoding.GetDecoder();
-        Runner = new RawProcessRunner(CommandPath, Arguments);
+        Arguments = cmdlet.Arguments;
+        Encoding = EncodingCompleter.GetEncoding(cmdlet.Encoding);
+        AsString = cmdlet.AsString.ToBool();
+        OutputType = cmdlet.Output;
+        _stderrDecoder = Encoding.GetDecoder();
+        _runner = new RawProcessRunner(CommandPath, Arguments);
     }
 
-    public void StartAsync(CancellationToken cancellationToken)
+    public override void BeginProcessing()
+    {
+        StartAsync(PipelineStopToken);
+        WriteVerboseRaw($"{_logPrefix} Started process with arguments: [{string.Join(", ", Arguments)}] ({StartTime.ToLocalTime():HH:mm:ss.fff})");
+    }
+
+    public override void ProcessRecord(byte[] inputBytes)
+    {
+        WriteInputAsync(inputBytes, PipelineStopToken).Wait();
+    }
+
+    public override void StopProcessing()
+    {
+        WriteVerboseRaw($"{_logPrefix} Stopping process");
+        Kill();
+
+        PrintDebugMessages();
+    }
+
+    public override void EndProcessing() => WaitForExecute();
+
+    private void StartAsync(CancellationToken cancellationToken)
     {
         if (AsString)
         {
@@ -54,15 +71,15 @@ internal class RawExecutionEngine
             _stringClient = new(PipeDirection.In, _stringServer.ClientSafePipeHandle);
             if (OutputType.HasFlag(OutputType.Stdout))
             {
-                Runner.OnStdout += OnOutputChunkAsString;
+                _runner.OnStdout += OnOutputChunkAsString;
             }
             if (OutputType.HasFlag(OutputType.Stderr))
             {
-                Runner.OnStderr += OnOutputChunkAsString;
+                _runner.OnStderr += OnOutputChunkAsString;
             }
             else
             {
-                Runner.OnStderr += OnErrorChunk;
+                _runner.OnStderr += OnErrorChunk;
             }
             _stringReaderTask = AsyncDecode(_stringClient, Encoding);
         }
@@ -70,18 +87,18 @@ internal class RawExecutionEngine
         {
             if (OutputType.HasFlag(OutputType.Stdout))
             {
-                Runner.OnStdout += OnOutputChunk;
+                _runner.OnStdout += OnOutputChunk;
             }
             if (OutputType.HasFlag(OutputType.Stderr))
             {
-                Runner.OnStderr += OnOutputChunk;
+                _runner.OnStderr += OnOutputChunk;
             }
             else
             {
-                Runner.OnStderr += OnErrorChunk;
+                _runner.OnStderr += OnErrorChunk;
             }
         }
-        Runner.Start(cancellationToken);
+        _runner.Start(cancellationToken);
     }
 
     private void OnOutputChunk(byte[] chunk)
@@ -109,7 +126,7 @@ internal class RawExecutionEngine
         Span<char> text = stackalloc char[charCount];
         _stderrDecoder.Convert(chunk, text, false, out _, out var charsUsed, out _);
         var record = new InformationRecord($"{PSStyle.Instance.Formatting.Error}{text[..charsUsed].TrimEnd("\r\n")}{PSStyle.Instance.Reset}",
-                                           $"{Runner.Name} (PID: {Runner.Pid})");
+                                           $"{_runner.Name} (PID: {_runner.Pid})");
         record.Tags.AddRange("PSHOST", "stderr");
         Output.Add(new InformationOutput(record));
 
@@ -142,28 +159,28 @@ internal class RawExecutionEngine
         Output.CompleteAdding();
     }
 
-    public async Task WriteInputAsync(byte[] inputBytes, CancellationToken cancellationToken)
+    private async Task WriteInputAsync(byte[] inputBytes, CancellationToken cancellationToken)
     {
         _totalReadBytes += inputBytes.Length;
         _readCount++;
         PrintDebug($"Read {inputBytes.Length} bytes from pipeline");
-        await Runner.WriteStdinAsync(inputBytes, cancellationToken);
+        await _runner.WriteStdinAsync(inputBytes, cancellationToken);
     }
 
-    public void Kill()
+    private void Kill()
     {
-        Runner.Kill();
+        _runner.Kill();
         _stringServer?.Dispose();
         _stringClient?.Dispose();
     }
 
-    public async Task<int> WaitForExitAsync(CancellationToken cancellationToken)
+    private async Task<int> WaitForExitAsync(CancellationToken cancellationToken)
     {
-        Runner.CloseStdin();
+        _runner.CloseStdin();
 
         int exitCode;
         PrintDebug($"Wait process runner's output to finish");
-        exitCode = await Runner.WaitForCompleteAsync(cancellationToken);
+        exitCode = await _runner.WaitForCompleteAsync(cancellationToken);
 
         if (AsString)
         {
@@ -178,19 +195,75 @@ internal class RawExecutionEngine
         return exitCode;
     }
 
+    private void WaitForExecute()
+    {
+        var exitTask = WaitForExitAsync(PipelineStopToken);
+        long totalWriteBytes = 0;
+        int writeCount = 0;
+        int lineCount = 0;
+        foreach (var output in Output.GetConsumingEnumerable(PipelineStopToken))
+        {
+            switch (output)
+            {
+                case StringOutput line:
+                    lineCount++;
+                    PrintDebug($"[{Cmdlet.MyCommandName}] Output line: [{lineCount}] {line.Value}");
+                    WriteObject(line.Value);
+                    break;
+                case ChunkOutput chunk:
+                    totalWriteBytes += chunk.Value.Length;
+                    writeCount++;
+                    PrintDebug($"[{Cmdlet.MyCommandName}] Output chunk: {chunk.Value.Length} bytes");
+                    WriteObject(chunk.Value, false);
+                    break;
+                case InformationOutput info:
+                    PrintDebug($"[{Cmdlet.MyCommandName}] Output Information: {info.Value}");
+                    WriteInformation(info.Value);
+                    break;
+            }
+        }
+        if (lineCount > 0)
+        {
+            WriteVerboseRaw($"{_logPrefix} Output total line: {lineCount}");
+        }
+        if (totalWriteBytes > 0)
+        {
+            WriteVerboseRaw($"{_logPrefix} Output total: {totalWriteBytes}, count: {writeCount}");
+        }
+
+        try
+        {
+            var exitCode = exitTask.GetAwaiter().GetResult();
+            WriteVerboseRaw($"{_logPrefix} End [ExitCode = {exitCode}]"
+                            + $" ({ExitTime.ToLocalTime():HH:mm:ss.fff},"
+                            + $" Duration={ExitTime - StartTime}))");
+            Cmdlet.SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
+
+        }
+        catch
+        {
+            Cmdlet.SessionState.PSVariable.Set("LASTEXITCODE", 1);
+            throw;
+        }
+        finally
+        {
+            PrintDebugMessages();
+        }
+    }
+
     [Conditional("DEBUG")]
     public void PrintDebug(string msg,
                            [CallerMemberName] string callerMethodName = "",
                            [CallerLineNumber] int callerLineNumber = 0)
     {
-        Runner.Log($"{msg}", "cmdlet", callerMethodName, callerLineNumber);
+        _runner.Log($"{msg}", "cmdlet", callerMethodName, callerLineNumber);
     }
 
     [Conditional("DEBUG")]
     public void PrintDebugMessages()
     {
 #if DEBUG
-        foreach (var msg in Runner.DebugMsgs)
+        foreach (var msg in _runner.DebugMsgs)
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Error.WriteLine(msg);
