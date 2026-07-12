@@ -51,7 +51,7 @@ internal sealed class RawExecutionEngine : ExecutionEngine
     public override void StopProcessing()
     {
         WriteVerboseRaw($"{_logPrefix} Stopping process");
-        Kill();
+        KillAsync().GetAwaiter().GetResult();
 
         PrintDebugMessages();
     }
@@ -157,11 +157,22 @@ internal sealed class RawExecutionEngine : ExecutionEngine
         await _runner.WriteStdinAsync(inputBytes, cancellationToken);
     }
 
-    private void Kill()
+    private async Task KillAsync()
     {
         _runner.Kill();
-        _stdoutDecoder?.DisposeAsync().AsTask().Wait();
-        _stderrDecoder?.DisposeAsync().AsTask().Wait();
+        try
+        {
+            await (_stdoutDecoder?.DisposeAsync() ?? ValueTask.CompletedTask);
+        }
+        catch
+        { }
+
+        try
+        {
+            await (_stderrDecoder?.DisposeAsync() ?? ValueTask.CompletedTask);
+        }
+        catch
+        { }
     }
 
     private async Task<int> WaitForExitAsync(CancellationToken cancellationToken)
