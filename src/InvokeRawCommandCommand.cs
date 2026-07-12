@@ -5,14 +5,6 @@ using Sashimi.Internal;
 
 namespace Sashimi;
 
-[Flags]
-public enum OutputType
-{
-    Stdout = 1,
-    Stderr = 2,
-    Both = Stdout | Stderr
-}
-
 [Cmdlet(VerbsLifecycle.Invoke, "RawCommand", DefaultParameterSetName = NormalParameterSet)]
 [Alias("raw")]
 [OutputType(typeof(byte[]))]
