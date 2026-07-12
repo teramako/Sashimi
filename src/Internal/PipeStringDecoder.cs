@@ -36,7 +36,15 @@ internal sealed class PipeStringDecoder : IAsyncDisposable
         using var sr = new StreamReader(stream, encoding);
         while (true)
         {
-            string? line = await sr.ReadLineAsync();
+            string? line;
+            try
+            {
+                line = await sr.ReadLineAsync();
+            }
+            catch
+            {
+                break;
+            }
             if (line is null)
                 break;
 
@@ -44,11 +52,16 @@ internal sealed class PipeStringDecoder : IAsyncDisposable
             _output.Add(new StringOutput(line, _to));
         }
 
-        var rest = await sr.ReadToEndAsync();
-        if (!string.IsNullOrEmpty(rest))
+        try
         {
-            _output.Add(new StringOutput(rest, _to));
+            var rest = sr.ReadToEnd();
+            if (!string.IsNullOrEmpty(rest))
+            {
+                _output.Add(new StringOutput(rest, _to));
+            }
         }
+        catch
+        { }
     }
 
     public async ValueTask DisposeAsync()
