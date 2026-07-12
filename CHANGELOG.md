@@ -12,6 +12,17 @@
 - Moved internal types such as `RawExecutionEngine`, `ExecutionEngine`, `NativeCommandCompleter`, and `EncodingCompleter` into the `Internal/` directory.
 - Extracted `RawOutputItem` and related record types from `InvokeRawCommandCommand` and centralized them under `Sashimi.Internal`.
 
+- Refactored `RawExecutionEngine` string decoding:
+  - Added `PipeStringDecoder` to unify stdout/stderr decoding.
+  - Replaced pipe fields with decoder fields.
+  - `RawOutputRecord` now carries `OutputType` for unified output routing.
+  - Simplified `RawExecutionEngine` by delegating all string decoding to `PipeStringDecoder`.
+
+- Replaced `RawOutputItem` with `RawOutputRecord` to clarify the internal output model.
+- Added `ToString()` implementations for `ChunkOutput` (hex dump) and `StringOutput`.
+- Updated internal components (`PipeStringDecoder`, `RawExecutionEngine`) to use the new record types.
+- Improved stderr output formatting by using `RawOutputRecord.ToString()` when generating `InformationRecord`.
+
 ## 1.2.0 - 2026-07-04
 
 ### Added
