@@ -11,6 +11,7 @@ internal sealed class RawExecutionEngine : ExecutionEngine
     private readonly RawProcessRunner _runner;
     private PipeStringDecoder? _stdoutDecoder;
     private PipeStringDecoder? _stderrDecoder;
+    private Redirection _redirection;
 
     private long _totalReadBytes;
     private int _readCount;
@@ -20,7 +21,6 @@ internal sealed class RawExecutionEngine : ExecutionEngine
     public string[] Arguments { get; }
     public Encoding Encoding { get; }
     public bool AsString { get; }
-    public OutputType OutputType { get; }
 
     public DateTime StartTime => _runner.StartTime;
     public DateTime ExitTime => _runner.ExitTime;
@@ -33,7 +33,7 @@ internal sealed class RawExecutionEngine : ExecutionEngine
         Arguments = cmdlet.Arguments;
         Encoding = EncodingCompleter.GetEncoding(cmdlet.Encoding);
         AsString = cmdlet.AsString.ToBool();
-        OutputType = cmdlet.Output;
+        _redirection = new Redirection(cmdlet.Output);
         _runner = new RawProcessRunner(CommandPath, Arguments);
     }
 
@@ -41,6 +41,7 @@ internal sealed class RawExecutionEngine : ExecutionEngine
     {
         StartAsync(PipelineStopToken);
         WriteVerboseRaw($"{_logPrefix} Started process with arguments: [{string.Join(", ", Arguments)}] ({StartTime.ToLocalTime():HH:mm:ss.fff})");
+        WriteVerboseRaw($"Stdout -> {_redirection.StdoutTo}, Stderr -> {_redirection.StderrTo}");
     }
 
     public override void ProcessRecord(byte[] inputBytes)
@@ -86,36 +87,29 @@ internal sealed class RawExecutionEngine : ExecutionEngine
     {
         if (AsString)
         {
-            if (OutputType.HasFlag(OutputType.Stdout))
+            if (_redirection.StdoutTo is not RedirectTo.Null)
             {
                 _runner.OnStdout += OnOutputChunkAsString;
-                _stdoutDecoder ??= new(Encoding, Output, OutputType.Stdout);
+                _stdoutDecoder ??= new(Encoding, Output, _redirection.StdoutTo);
             }
-            if (OutputType.HasFlag(OutputType.Stderr))
-            {
-                _runner.OnStderr += OnOutputChunkAsString;
-                _stdoutDecoder ??= new(Encoding, Output, OutputType.Stdout);
-            }
-            else
+
+            if (_redirection.StderrTo is not RedirectTo.Null)
             {
                 _runner.OnStderr += OnErrorChunkAsString;
-                _stderrDecoder ??= new(Encoding, Output, OutputType.Stderr);
+                _stderrDecoder ??= new(Encoding, Output, _redirection.StderrTo);
             }
         }
         else
         {
-            if (OutputType.HasFlag(OutputType.Stdout))
+            if (_redirection.StdoutTo is not RedirectTo.Null)
             {
                 _runner.OnStdout += OnOutputChunk;
             }
-            if (OutputType.HasFlag(OutputType.Stderr))
-            {
-                _runner.OnStderr += OnOutputChunk;
-            }
-            else
+
+            if (_redirection.StderrTo is not RedirectTo.Null)
             {
                 _runner.OnStderr += OnErrorChunkAsString;
-                _stderrDecoder ??= new(Encoding, Output, OutputType.Stderr);
+                _stderrDecoder ??= new(Encoding, Output, _redirection.StderrTo);
             }
         }
         _runner.Start(cancellationToken);
@@ -123,7 +117,7 @@ internal sealed class RawExecutionEngine : ExecutionEngine
 
     private void OnOutputChunk(byte[] chunk)
     {
-        Output.Add(new ChunkOutput(chunk, OutputType.Stdout));
+        Output.Add(new ChunkOutput(chunk, _redirection.StdoutTo));
     }
 
     private void OnOutputChunkAsString(byte[] chunk)
@@ -137,7 +131,7 @@ internal sealed class RawExecutionEngine : ExecutionEngine
 
     private void OnErrorChunk(byte[] chunk)
     {
-        Output.Add(new ChunkOutput(chunk, OutputType.Stderr));
+        Output.Add(new ChunkOutput(chunk, _redirection.StderrTo));
     }
 
     private void OnErrorChunkAsString(byte[] chunk)
@@ -201,10 +195,10 @@ internal sealed class RawExecutionEngine : ExecutionEngine
         {
             switch (output.To)
             {
-                case OutputType.Stdout:
+                case RedirectTo.Output:
                     WriteOut(output);
                     break;
-                case OutputType.Stderr:
+                case RedirectTo.Error:
                     WriteError(output);
                     break;
             }

@@ -27,6 +27,12 @@
 - Updated internal components (`PipeStringDecoder`, `RawExecutionEngine`) to use the new record types.
 - Improved stderr output formatting by using `RawOutputRecord.ToString()` when generating `InformationRecord`.
 
+- `OutputType` → `OutputFrom` and introduce `RedirectTo`/`Redirection`.
+  - Replaced `OutputType` with `OutputFrom` to clarify “source stream” semantics.
+  - Introduced `RedirectTo` enum (Null / Output / Error) aligned with PowerShell’s `RedirectionStream`.
+  - Added `Redirection` record struct to unify initial output selection and final routing targets.
+  - Updated internal components (`RawExecutionEngine`, `PipeStringDecoder`, `RawOutputRecord`) to use the new routing model.
+
 ## 1.2.0 - 2026-07-04
 
 ### Added

@@ -1,7 +1,7 @@
 namespace Sashimi;
 
 [Flags]
-public enum OutputType
+public enum OutputFrom
 {
     Stdout = 1,
     Stderr = 2,
