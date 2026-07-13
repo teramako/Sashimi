@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Changed
+- Stderr is now emitted as `ErrorRecord` instead of `InformationRecord`.
+  - Enables correct PowerShell redirection behavior (`2>`, `2>&1`).
+  - Uses `ErrorCategory.FromStdErr` for native stderr classification.
+
 - Changed `RawProcessRunner` from `public` to `internal` and moved it into the `Sashimi.Internal` namespace.
   - This type is an implementation detail and was never intended to be part of the public API surface.
   - If external code directly referenced `RawProcessRunner`, this constitutes a breaking change. Please migrate to the supported cmdlet-based APIs as needed.
