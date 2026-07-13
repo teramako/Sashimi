@@ -249,10 +249,8 @@ internal sealed class RawExecutionEngine : ExecutionEngine
                     break;
             }
 #endif
-            InformationRecord record = new($"{PSStyle.Instance.Formatting.Error}{output}{PSStyle.Instance.Reset}",
-                                           $"{_runner.Name} (PID: {_runner.Pid})");
-            record.Tags.AddRange("PSHOST", "stderr");
-            WriteInformation(record);
+            ErrorRecord error = new(new RemoteException(output.ToString()), "NativeCommandError", ErrorCategory.FromStdErr, output);
+            Cmdlet.WriteError(error);
         }
     }
 
