@@ -108,8 +108,15 @@ internal sealed class RawExecutionEngine : ExecutionEngine
 
             if (_redirection.StderrTo is not RedirectTo.Null)
             {
-                _runner.OnStderr += OnErrorChunkAsString;
-                _stderrDecoder ??= new(Encoding, Output, _redirection.StderrTo);
+                if (_redirection.StderrTo is RedirectTo.Output)
+                {
+                    _runner.OnStderr += OnErrorChunk;
+                }
+                else
+                {
+                    _runner.OnStderr += OnErrorChunkAsString;
+                    _stderrDecoder ??= new(Encoding, Output, _redirection.StderrTo);
+                }
             }
         }
         _runner.Start(cancellationToken);
