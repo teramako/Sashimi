@@ -33,6 +33,11 @@
   - Added `Redirection` record struct to unify initial output selection and final routing targets.
   - Updated internal components (`RawExecutionEngine`, `PipeStringDecoder`, `RawOutputRecord`) to use the new routing model.
 
+- Implemented PowerShell redirection parsing (`2>&1`, `>&2`, `*>$null`, etc.) using `RedirectionAst`.
+- Extended `RedirectTo` enum to include all PowerShell streams (Warning, Verbose, Debug, Information).
+- Added `Redirection.GetRedirectionFromStatement()` to merge `OutputFrom` with parsed redirection rules.
+- Updated `RawExecutionEngine` to route output based on final `RedirectTo` targets.
+
 ## 1.2.0 - 2026-07-04
 
 ### Added

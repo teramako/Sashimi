@@ -33,7 +33,7 @@ internal sealed class RawExecutionEngine : ExecutionEngine
         Arguments = cmdlet.Arguments;
         Encoding = EncodingCompleter.GetEncoding(cmdlet.Encoding);
         AsString = cmdlet.AsString.ToBool();
-        _redirection = new Redirection(cmdlet.Output);
+        _redirection = Redirection.GetRedirectionFromStatement(cmdlet.MyInvocation.Statement, cmdlet.Output);
         _runner = new RawProcessRunner(CommandPath, Arguments);
     }
 
@@ -207,6 +207,24 @@ internal sealed class RawExecutionEngine : ExecutionEngine
                     break;
                 case RedirectTo.Error:
                     WriteError(output);
+                    break;
+                case RedirectTo.Warning: // `n>&3`:
+                    // Since PowerShell core does not support, this branch will likely never be entered.
+                    Cmdlet.WriteWarning(output.ToString());
+                    break;
+                case RedirectTo.Verbose: // `n>&4`:
+                    // Since PowerShell core does not support, this branch will likely never be entered.
+                    Cmdlet.WriteVerbose(output.ToString());
+                    break;
+                case RedirectTo.Debug: // `n>&5`:
+                    // Since PowerShell core does not support, this branch will likely never be entered.
+                    Cmdlet.WriteDebug(output.ToString());
+                    break;
+                case RedirectTo.Information: // `n>&6`:
+                    // Since PowerShell core does not support, this branch will likely never be entered.
+                    InformationRecord record = new(output, $"{_runner.Name} (PID: {_runner.Pid})");
+                    record.Tags.AddRange("PSHOST", "redirect");
+                    Cmdlet.WriteInformation(record);
                     break;
             }
         }
