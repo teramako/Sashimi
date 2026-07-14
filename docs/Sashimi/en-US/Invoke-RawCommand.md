@@ -4,7 +4,7 @@ external help file: Sashimi.dll-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: Sashimi
-ms.date: 07/02/2026
+ms.date: 07/14/2026
 PlatyPS schema version: 2024-05-01
 title: Invoke-RawCommand
 ---
@@ -21,13 +21,13 @@ Executes a native command and returns its output as raw bytes or decoded text.
 
 ```
 Invoke-RawCommand [-Command] <string> [[-Arguments] <string[]>] [-InputBytes <byte[]>]
- [-Output <OutputType>] [-AsString] [-Encoding <string>] [<CommonParameters>]
+ [-Output <OutputFrom>] [-AsString] [-Encoding <string>] [<CommonParameters>]
 ```
 
 ### ScriptBlock
 
 ```
-Invoke-RawCommand [-Script] <scriptblock> [-InputBytes <byte[]>] [-Output <OutputType>] [-AsString]
+Invoke-RawCommand [-Script] <scriptblock> [-InputBytes <byte[]>] [-Output <OutputFrom>] [-AsString]
  [-Encoding <string>] [<CommonParameters>]
 ```
 
@@ -213,7 +213,7 @@ Valid values are defined by the `Sashimi.OutputType` enum (e.g., `StdOut`, `StdE
 The selected streams are emitted as raw `byte[]` chunks.
 
 ```yaml
-Type: Sashimi.OutputType
+Type: Sashimi.OutputFrom
 DefaultValue: ''
 SupportsWildcards: false
 Aliases:
