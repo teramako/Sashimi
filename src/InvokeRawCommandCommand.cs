@@ -33,7 +33,7 @@ public class InvokeRawCommandCommand : RawCommandBase
 
     [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Output")]
     [Alias("o")]
-    public OutputType Output { get; set; } = OutputType.Stdout;
+    public OutputFrom Output { get; set; } = OutputFrom.Stdout;
 
     [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.AsString")]
     [Alias("s")]
