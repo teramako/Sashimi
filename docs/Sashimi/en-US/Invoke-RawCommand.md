@@ -209,7 +209,7 @@ HelpMessage: ''
 ### -Output
 
 Specifies which output streams to emit.
-Valid values are defined by the `Sashimi.OutputType` enum (e.g., `StdOut`, `StdErr`, `Both`).
+Valid values are defined by the `Sashimi.OutputFrom` enum (e.g., `Stdout`, `Stderr`, `Both`).
 The selected streams are emitted as raw `byte[]` chunks.
 
 ```yaml
