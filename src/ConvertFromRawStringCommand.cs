@@ -1,5 +1,6 @@
 using System.Management.Automation;
 using System.Text;
+using Sashimi.Internal;
 
 namespace Sashimi;
 

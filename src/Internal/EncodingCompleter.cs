@@ -4,7 +4,7 @@ using System.Management.Automation.Language;
 using System.Text;
 using EncodingItem = (string Name, int CodePage, string DisplayName);
 
-namespace Sashimi;
+namespace Sashimi.Internal;
 
 /// <summary>
 /// Provides argument completion for all installed encodings,

@@ -97,4 +97,56 @@ Describe 'Invoke-RawCommand' {
             $job.State | Should -Be 'Stopped'
         }
     }
+
+    Context 'Redirection' {
+        BeforeAll {
+            $Script:cmdPath = Join-Path -Path $PSScriptRoot -ChildPath 'assets', 'redirect_test.sh'
+            # redirect_test.sh prints:
+            #   StdOut to stdout
+            #   StdErr to stderr
+        }
+
+        It '-Output <Name>' -ForEach @(
+            @{ Name = "(Non -Output parameter)";  Arguments = @{};                    Expected = @("StdOut");           ExpectedErrors = @("StdErr") }
+            @{ Name = "Stdout (same as default)"; Arguments = @{ Output = "Stdout" }; Expected = @("StdOut");           ExpectedErrors = @("StdErr") }
+            @{ Name = 'Stderr (">$null 2>&1") ';  Arguments = @{ Output = "Stderr" }; Expected = @("StdErr");           ExpectedErrors = @() }
+            @{ Name = 'Both ("2>&1")';            Arguments = @{ Output = "Both" };   Expected = @("StdOut", "StdErr"); ExpectedErrors = @() }
+        ) {
+            # -Output tests use -AsString because OutputFrom affects string routing
+            # 2>&1 test omits -AsString to verify byte[] routing behavior
+            $results = Invoke-RawCommand $Script:cmdPath -AsString @Arguments -ErrorVariable errors -ErrorAction SilentlyContinue
+
+            $results | Should -Be $Expected
+            $errors | Should -Be $ExpectedErrors
+        }
+
+        It 'Outputs is empty when redirection is ">$null"' {
+            $results = Invoke-RawCommand $Script:cmdPath >$null -ErrorAction Ignore
+            Should -BeNullOrEmpty -ActualValue $results
+        }
+
+        It 'Error outputs is empty when redirection is "2>$null"' {
+            $null = Invoke-RawCommand $Script:cmdPath 2>$null -ErrorVariable errors
+            Should -BeNullOrEmpty -ActualValue $errors
+        }
+
+        It 'Error outputs should be string' {
+            Invoke-RawCommand $Script:cmdPath >$null -ErrorVariable errors -ErrorAction SilentlyContinue
+            $errors.Count | Should -BeGreaterThan 0
+            $errors[0].Exception.Message | Should -BeExactly "StdErr"
+        }
+
+        It 'Outputs from StdErr should be byte[] when redirection is "2>&1"' {
+            $results = Invoke-RawCommand $Script:cmdPath -ErrorVariable errors -ErrorAction SilentlyContinue 2>&1
+
+            $errors.Count | Should -Be 0
+            $results.Count | Should -BeGreaterThan 1
+            foreach ($data in $results) {
+                Should -BeOfType [byte[]] -ActualValue $data
+            }
+
+            $lines = $results | ConvertTo-RawString | Sort-Object
+            $lines | Should -Be @("StdErr", "StdOut")
+        }
+    }
 }

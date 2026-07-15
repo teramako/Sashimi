@@ -3,13 +3,13 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace Sashimi;
+namespace Sashimi.Internal;
 
 /// <summary>
 /// Runs an external process and exposes its stdin/stdout/stderr as asynchronous streams.
 /// Designed for PowerShell cmdlets that require non-blocking, cancellable process I/O.
 /// </summary>
-public sealed class RawProcessRunner : IAsyncDisposable
+internal sealed class RawProcessRunner : IAsyncDisposable
 {
 #if DEBUG
     public record DebugMsg(TimeSpan TimeSpan, int Pid, string Category, string Source, object Message)

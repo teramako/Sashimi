@@ -23,11 +23,14 @@ public abstract class RawCommandBase : PSCmdlet
 
     protected const string MessageBaseName = "Sashimi.resources.messages";
 
+    /// <inheritdoc cref="CommandInfo.Name"/>
+    public string MyCommandName => MyInvocation.MyCommand.Name;
+
     private readonly Stopwatch _sw = Stopwatch.StartNew();
 
-    protected void WriteVerboseRaw(ReadOnlySpan<char> message)
+    internal void WriteVerboseRaw(ReadOnlySpan<char> message)
     {
-        WriteVerbose($"({_sw.Elapsed})[{MyInvocation.MyCommand.Name}] {message}");
+        WriteVerbose($"({_sw.Elapsed})[{MyCommandName}] {message}");
     }
 
     protected void WriteInformationRaw(string message, params string[] tags)

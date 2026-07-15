@@ -1,5 +1,43 @@
 # Changelog
 
+## 1.3.0 - 2026-07-15
+
+### Changed
+- Stderr is now emitted as `ErrorRecord` instead of `InformationRecord`.
+  - Enables correct PowerShell redirection behavior (`2>`, `2>&1`).
+  - Uses `ErrorCategory.FromStdErr` for native stderr classification.
+
+- Changed `RawProcessRunner` from `public` to `internal` and moved it into the `Sashimi.Internal` namespace.
+  - This type is an implementation detail and was never intended to be part of the public API surface.
+  - If external code directly referenced `RawProcessRunner`, this constitutes a breaking change. Please migrate to the supported cmdlet-based APIs as needed.
+
+### Internal
+
+#### Introduced `Sashimi.Internal` namespace
+- Consolidated internal implementation types under the `Sashimi.Internal` namespace to clearly separate public API from internal architecture.
+
+#### Unified output model
+- Replaced `RawOutputItem` with `RawOutputRecord` to clarify the internal output representation.
+- Added `ChunkOutput` (hex dump) and `StringOutput` with meaningful `ToString()` implementations.
+- Updated internal components (`PipeStringDecoder`, `RawExecutionEngine`) to use the new record-based model.
+
+#### Centralized string decoding
+- Introduced `PipeStringDecoder` to unify stdout/stderr string decoding.
+- Removed per-stream pipe fields and delegated all decoding logic to `PipeStringDecoder`.
+- Improved stderr formatting by using `RawOutputRecord.ToString()` when generating `InformationRecord`.
+
+#### Redirection model redesign
+- Renamed `OutputType` → `OutputFrom` to clarify “source stream” semantics.
+- Introduced `RedirectTo` enum (Null / Output / Error) aligned with PowerShell’s `RedirectionStream`.
+- Added `Redirection` record struct to unify initial output selection and final routing targets.
+- Updated `RawExecutionEngine`, `PipeStringDecoder`, and `RawOutputRecord` to use the new routing model.
+
+#### PowerShell redirection parsing
+- Implemented parsing of PowerShell redirection syntax (`2>&1`, `>&2`, `*>$null`, etc.) using `RedirectionAst`.
+- Extended `RedirectTo` to include all PowerShell streams (Warning, Verbose, Debug, Information).
+- Added `Redirection.GetRedirectionFromStatement()` to merge `OutputFrom` with parsed redirection rules.
+- Updated `RawExecutionEngine` to route output based on final `RedirectTo` targets, including correct byte[]/string behavior for merged stderr→stdout.
+
 ## 1.2.0 - 2026-07-04
 
 ### Added
