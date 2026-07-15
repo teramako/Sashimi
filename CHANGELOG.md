@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## 1.3.0 - 2026-07-15
 
 ### Changed
 - Stderr is now emitted as `ErrorRecord` instead of `InformationRecord`.
@@ -12,31 +12,31 @@
   - If external code directly referenced `RawProcessRunner`, this constitutes a breaking change. Please migrate to the supported cmdlet-based APIs as needed.
 
 ### Internal
+
+#### Introduced `Sashimi.Internal` namespace
 - Consolidated internal implementation types under the `Sashimi.Internal` namespace to clearly separate public API from internal architecture.
-- Moved internal types such as `RawExecutionEngine`, `ExecutionEngine`, `NativeCommandCompleter`, and `EncodingCompleter` into the `Internal/` directory.
-- Extracted `RawOutputItem` and related record types from `InvokeRawCommandCommand` and centralized them under `Sashimi.Internal`.
 
-- Refactored `RawExecutionEngine` string decoding:
-  - Added `PipeStringDecoder` to unify stdout/stderr decoding.
-  - Replaced pipe fields with decoder fields.
-  - `RawOutputRecord` now carries `OutputType` for unified output routing.
-  - Simplified `RawExecutionEngine` by delegating all string decoding to `PipeStringDecoder`.
+#### Unified output model
+- Replaced `RawOutputItem` with `RawOutputRecord` to clarify the internal output representation.
+- Added `ChunkOutput` (hex dump) and `StringOutput` with meaningful `ToString()` implementations.
+- Updated internal components (`PipeStringDecoder`, `RawExecutionEngine`) to use the new record-based model.
 
-- Replaced `RawOutputItem` with `RawOutputRecord` to clarify the internal output model.
-- Added `ToString()` implementations for `ChunkOutput` (hex dump) and `StringOutput`.
-- Updated internal components (`PipeStringDecoder`, `RawExecutionEngine`) to use the new record types.
-- Improved stderr output formatting by using `RawOutputRecord.ToString()` when generating `InformationRecord`.
+#### Centralized string decoding
+- Introduced `PipeStringDecoder` to unify stdout/stderr string decoding.
+- Removed per-stream pipe fields and delegated all decoding logic to `PipeStringDecoder`.
+- Improved stderr formatting by using `RawOutputRecord.ToString()` when generating `InformationRecord`.
 
-- `OutputType` → `OutputFrom` and introduce `RedirectTo`/`Redirection`.
-  - Replaced `OutputType` with `OutputFrom` to clarify “source stream” semantics.
-  - Introduced `RedirectTo` enum (Null / Output / Error) aligned with PowerShell’s `RedirectionStream`.
-  - Added `Redirection` record struct to unify initial output selection and final routing targets.
-  - Updated internal components (`RawExecutionEngine`, `PipeStringDecoder`, `RawOutputRecord`) to use the new routing model.
+#### Redirection model redesign
+- Renamed `OutputType` → `OutputFrom` to clarify “source stream” semantics.
+- Introduced `RedirectTo` enum (Null / Output / Error) aligned with PowerShell’s `RedirectionStream`.
+- Added `Redirection` record struct to unify initial output selection and final routing targets.
+- Updated `RawExecutionEngine`, `PipeStringDecoder`, and `RawOutputRecord` to use the new routing model.
 
-- Implemented PowerShell redirection parsing (`2>&1`, `>&2`, `*>$null`, etc.) using `RedirectionAst`.
-- Extended `RedirectTo` enum to include all PowerShell streams (Warning, Verbose, Debug, Information).
+#### PowerShell redirection parsing
+- Implemented parsing of PowerShell redirection syntax (`2>&1`, `>&2`, `*>$null`, etc.) using `RedirectionAst`.
+- Extended `RedirectTo` to include all PowerShell streams (Warning, Verbose, Debug, Information).
 - Added `Redirection.GetRedirectionFromStatement()` to merge `OutputFrom` with parsed redirection rules.
-- Updated `RawExecutionEngine` to route output based on final `RedirectTo` targets.
+- Updated `RawExecutionEngine` to route output based on final `RedirectTo` targets, including correct byte[]/string behavior for merged stderr→stdout.
 
 ## 1.2.0 - 2026-07-04
 
