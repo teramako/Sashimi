@@ -149,4 +149,14 @@ Describe 'Invoke-RawCommand' {
             $lines | Should -Be @("StdErr", "StdOut")
         }
     }
+
+    Context 'ScriptBlock' {
+        It 'Proper arguments are passed: {<block>}' -ForEach @(
+            @{ block = { printf 'abc' }; expected = 'abc' }
+            @{ block = { printf '[''%s'']' 'a b' "`"c d`"" "e='f'" }; expected = "['a b']['`"c d`"']['e='f'']" }
+        ) {
+            $result = Invoke-RawCommand -AsString $block
+            $result | Should -Be $expected
+        }
+    }
 }
