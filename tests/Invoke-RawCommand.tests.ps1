@@ -64,6 +64,24 @@ Describe 'Invoke-RawCommand' {
         }
     }
 
+    Context 'Input to stdin as specified encoding' {
+        It '<text> in encoding "<encoding>"' -ForEach @(
+            @{ text = 'うんこ'; encoding = $null; }
+            @{ text = 'うんこ'; encoding = 'shift_jis'; }
+            @{ text = 'うんこ'; encoding = 'euc-jp'; }
+        ) {
+            $results = if ($null -ne $encoding) {
+                $expected = GetBytes $text $encoding
+                $text | Invoke-RawCommand -Encoding $encoding cat
+            } else {
+                $expected = GetBytes $text 'utf-8'
+                $text | Invoke-RawCommand cat
+            }
+
+            CompareBytes -Expected $expected -Actual $results
+        }
+    }
+
     Context 'Large output' {
         It 'reads 100000 lines without loss' {
             $script = Join-Path -Path $PSScriptRoot -ChildPath 'assets', 'seq100000.sh'
