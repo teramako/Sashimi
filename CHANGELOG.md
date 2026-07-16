@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Added support for string pipeline input in `Invoke-RawCommand`.
+  String input is now encoded using the encoding specified by `-Encoding` (default: UTF-8).
+  This enables correct stdin handling for tools expecting non-UTF8 encodings such as Shift_JIS or EUC-JP.
+
 ## 1.3.0 - 2026-07-15
 
 ### Changed

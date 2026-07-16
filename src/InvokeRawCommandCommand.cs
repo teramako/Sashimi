@@ -28,8 +28,8 @@ public class InvokeRawCommandCommand : RawCommandBase
     public ScriptBlock? Script { get; set; }
 
     [Parameter(ValueFromPipeline = true,
-               HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.InputBytes")]
-    public byte[]? InputBytes { get; set; }
+               HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Input")]
+    public object? Input { get; set; }
 
     [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Output")]
     [Alias("o")]
@@ -92,9 +92,25 @@ public class InvokeRawCommandCommand : RawCommandBase
 
     protected override void ProcessRecord()
     {
-        if (InputBytes is not null)
+        if (Input is null)
+            return;
+
+        if (Input is PSObject pso)
+            Input = pso.BaseObject;
+
+        if (Input is string str)
         {
-            _engine?.ProcessRecord(InputBytes);
+            _engine?.ProcessRecord(str);
+        }
+        else if (LanguagePrimitives.TryConvertTo<byte[]>(Input, out var bytes))
+        {
+            _engine?.ProcessRecord(bytes);
+        }
+        else
+        {
+            var msg = $"Input data must be either byte[] or string: {Input?.GetType().Name ?? "null"}";
+            ThrowTerminatingError(new(new InvalidDataException(msg), "InvalidDataType", ErrorCategory.InvalidType, Input));
+            return;
         }
     }
 

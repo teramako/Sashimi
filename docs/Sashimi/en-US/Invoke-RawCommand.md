@@ -4,7 +4,7 @@ external help file: Sashimi.dll-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: Sashimi
-ms.date: 07/14/2026
+ms.date: 07/17/2026
 PlatyPS schema version: 2024-05-01
 title: Invoke-RawCommand
 ---
@@ -20,14 +20,14 @@ Executes a native command and returns its output as raw bytes or decoded text.
 ### Normal (Default)
 
 ```
-Invoke-RawCommand [-Command] <string> [[-Arguments] <string[]>] [-InputBytes <byte[]>]
+Invoke-RawCommand [-Command] <string> [[-Arguments] <string[]>] [-Input <Object>]
  [-Output <OutputFrom>] [-AsString] [-Encoding <string>] [<CommonParameters>]
 ```
 
 ### ScriptBlock
 
 ```
-Invoke-RawCommand [-Script] <scriptblock> [-InputBytes <byte[]>] [-Output <OutputFrom>] [-AsString]
+Invoke-RawCommand [-Script] <scriptblock> [-Input <Object>] [-Output <OutputFrom>] [-AsString]
  [-Encoding <string>] [<CommonParameters>]
 ```
 
@@ -39,23 +39,25 @@ This cmdlet has the following aliases,
 
 ## DESCRIPTION
 
-`Invoke-RawCommand` executes an external process and exposes its output streams as raw `byte[]` data.
-Unlike standard PowerShell external command invocation, no text encoding, newline normalization, or string conversion is applied. The command’s stdout and stderr streams are emitted exactly as produced by the process.
+`Invoke-RawCommand` executes an external process and exposes its output streams as raw `byte[]` data.  
+Unlike standard PowerShell external command invocation, no text encoding, newline normalization, or string conversion is applied.  
+The command’s stdout and stderr streams are emitted exactly as produced by the process.
 
 This cmdlet is the foundation of the Sashimi module and enables precise binary‑level interaction with native tools, including those that output non‑UTF8 data, arbitrary binary payloads, or mixed encodings.
 
-When a ScriptBlock is provided, only the first statement is analyzed and executed as a native command. This allows natural PowerShell syntax while avoiding unintended ScriptBlock execution semantics.
+When a ScriptBlock is provided, the block is executed using PowerShell’s normal execution semantics.  
+External commands inside the ScriptBlock are invoked in raw mode, while PowerShell constructs such as variables, quoting, pipelines, and control flow behave naturally.
 
-`Invoke-RawCommand` normally emits raw `byte[]` data with no text encoding or string conversion.
-When the `-AsString` switch is used, the cmdlet decodes the output into a PowerShell string for convenience.
+`Invoke-RawCommand` normally emits raw `byte[]` data with no text encoding or string conversion.  
+When the `-AsString` switch is used, the cmdlet decodes stdout into a PowerShell string for convenience.
 
 When `-AsString` is not used, stdout is emitted as raw `byte[]` chunks.  
-Stderr is also captured as raw bytes, but when not selecting raw output modes,  
-stderr is decoded using the encoding specified by `-Encoding` and emitted as `InformationRecord` messages.
+Stderr is also captured as raw bytes, but when not selecting raw output modes, stderr is decoded using the encoding specified by `-Encoding` and emitted as `ErrorRecord` messages.  
 This allows stderr to appear as readable text in the PowerShell pipeline while preserving byte‑level fidelity for stdout.
 
 The `-Encoding` parameter controls how stderr is decoded (default: UTF‑8).  
-This is useful for tools that emit non‑UTF8 error messages such as Shift_JIS or other legacy encodings.
+**It also controls how string input from the pipeline is encoded when written to the process’s stdin.**  
+This ensures consistent behavior when interacting with tools that expect specific encodings such as Shift_JIS or EUC-JP.
 
 ## EXAMPLES
 
@@ -158,11 +160,13 @@ HelpMessage: ''
 
 ### -Encoding
 
-Specifies the text encoding used to decode stderr when the cmdlet emits string‑based error output.
-Stderr byte chunks are decoded using this encoding and written as `InformationRecord` messages unless raw output is selected.
+Specifies the text encoding used for:
 
-This parameter does not affect stdout decoding when `-AsString` is used;  
-stdout is decoded using the encoding detected from the process output or UTF‑8 when no encoding can be determined.
+- decoding stderr when the cmdlet emits string‑based error output
+- **encoding string input from the pipeline before writing it to stdin**
+
+When a string is piped into `Invoke-RawCommand`, it is converted to bytes using this encoding.  
+This allows tools that expect non‑UTF8 input (e.g., Shift_JIS) to receive correctly encoded data.
 
 Common values include `UTF-8`, `Shift_JIS`, `EUC-JP`, and other encodings supported by .NET.
 
@@ -184,13 +188,20 @@ AcceptedValues: []
 HelpMessage: ''
 ```
 
-### -InputBytes
+### -Input
 
-Provides raw byte input to the process’s standard input stream.
-When supplied via the pipeline, each `byte[]` chunk is written directly without buffering or encoding.
+Provides input to the process’s standard input stream.
+
+This parameter accepts:
+
+- **byte** — written directly to stdin  
+- **byte[]** — forwarded as-is  
+- **string** — encoded using the encoding specified by `-Encoding`  
+
+When supplied via the pipeline, each chunk is written directly without buffering.
 
 ```yaml
-Type: System.Byte[]
+Type: System.Object
 DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
@@ -274,6 +285,12 @@ A single byte value can be piped to `-InputBytes`, which is written directly to 
 ### System.Byte[]
 
 A byte array can be piped to `-InputBytes`. Each array is forwarded as-is to the process’s stdin stream.
+
+### System.String
+
+A string can be piped to `Invoke-RawCommand`.  
+The string is encoded using the encoding specified by `-Encoding` (default: UTF‑8)  
+and written to the process’s stdin as raw bytes.
 
 ## OUTPUTS
 

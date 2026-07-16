@@ -42,7 +42,7 @@ Describe 'Invoke-RawCommand' {
         It 'input as bulk' {
             $bytes = GetBytes $text $from
             $expected = GetBytes $text $to
-            $result = Invoke-RawCommand iconv $argv -InputBytes $bytes
+            $result = Invoke-RawCommand iconv $argv -Input $bytes
 
             CompareBytes -Expected $expected -Actual $result
         }
@@ -61,6 +61,24 @@ Describe 'Invoke-RawCommand' {
             $result = $bytes | Invoke-RawCommand iconv $argv
 
             CompareBytes -Expected $expected -Actual $result
+        }
+    }
+
+    Context 'Input to stdin as specified encoding' {
+        It '<text> in encoding "<encoding>"' -ForEach @(
+            @{ text = 'うんこ'; encoding = $null; }
+            @{ text = 'うんこ'; encoding = 'shift_jis'; }
+            @{ text = 'うんこ'; encoding = 'euc-jp'; }
+        ) {
+            $results = if ($null -ne $encoding) {
+                $expected = GetBytes $text $encoding
+                $text | Invoke-RawCommand -Encoding $encoding cat
+            } else {
+                $expected = GetBytes $text 'utf-8'
+                $text | Invoke-RawCommand cat
+            }
+
+            CompareBytes -Expected $expected -Actual $results
         }
     }
 

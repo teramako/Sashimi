@@ -22,8 +22,8 @@
   <data name="InvokeRawCommand.parameters.Script" xml:space="preserve">
     <value>Specifies the ScriptBlock to execute.</value>
   </data>
-  <data name="InvokeRawCommand.parameters.InputBytes" xml:space="preserve">
-    <value>Sends raw input bytes from the pipeline to the command.</value>
+  <data name="InvokeRawCommand.parameters.Input" xml:space="preserve">
+    <value>Sends raw input bytes or string from the pipeline to the command.</value>
   </data>
   <data name="InvokeRawCommand.parameters.Output" xml:space="preserve">
     <value>Selects which output stream to capture (stdout or stderr).</value>
