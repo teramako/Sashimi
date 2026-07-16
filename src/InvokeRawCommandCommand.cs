@@ -55,6 +55,7 @@ public class InvokeRawCommandCommand : RawCommandBase
                 if (SniffScriptBlock(Script, out var commandAst))
                 {
                     var appInfo = GetAppInfo(commandAst.GetCommandName());
+                    Arguments = GetArguments(commandAst).ToArray();
                     _engine = new RawExecutionEngine(this, appInfo.Path);
                 }
                 else
