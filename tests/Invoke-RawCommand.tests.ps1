@@ -42,7 +42,7 @@ Describe 'Invoke-RawCommand' {
         It 'input as bulk' {
             $bytes = GetBytes $text $from
             $expected = GetBytes $text $to
-            $result = Invoke-RawCommand iconv $argv -InputBytes $bytes
+            $result = Invoke-RawCommand iconv $argv -Input $bytes
 
             CompareBytes -Expected $expected -Actual $result
         }

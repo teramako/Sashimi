@@ -49,6 +49,11 @@ internal sealed class RawExecutionEngine : ExecutionEngine
         WriteInputAsync(inputBytes, PipelineStopToken).Wait();
     }
 
+    public override void ProcessRecord(string inputString)
+    {
+        ProcessRecord(Encoding.GetBytes(inputString));
+    }
+
     public override void StopProcessing()
     {
         WriteVerboseRaw($"{_logPrefix} Stopping process");
