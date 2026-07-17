@@ -50,25 +50,40 @@ internal sealed class ScriptBlockExecutionEngine : ExecutionEngine
 
         ReadOnlySpan<char> original = _ast.EndBlock.Extent.Text;
 
-        string cmdletOptions = ParametersToString(_forwardParameters);
+        const string asStringParam = nameof(InvokeRawCommandCommand.AsString);
+        string lastCmdletOptionsInChain = ParametersToString(_forwardParameters);
+        string nonLastCmdletOptionsInChain = _forwardParameters?.ContainsKey(asStringParam) ?? false
+            ? ParametersToString(_forwardParameters.Where(kv => kv.Key is not asStringParam).ToDictionary())
+            : lastCmdletOptionsInChain;
         int start = _ast.EndBlock.Extent.StartOffset;
         int offset = start;
-        foreach ((var commandAst, var appInfo) in _finder.ExternalCommands)
+        foreach (var chain in _finder.ExternalCommandChains)
         {
-            if (commandAst.CommandElements.Count == 0)
-                continue;
-
-            var cmdAst = commandAst.CommandElements[0];
-
-            script.Append(original[(offset - start)..(cmdAst.Extent.StartOffset - start)]);
-
-            script.Append($"{Cmdlet.MyCommandName} {cmdletOptions} '{CodeGeneration.EscapeSingleQuotedStringContent(appInfo.Path)}'");
-            if (commandAst.CommandElements.Count > 1)
+            int lastIndex = chain.Count - 1;
+            for (var i = 0; i < chain.Count; i++)
             {
-                script.Append(" --");
-            }
+                (var commandAst, var appInfo, _) = chain[i];
+                if (commandAst.CommandElements.Count == 0)
+                    continue;
 
-            offset = cmdAst.Extent.EndOffset;
+                var cmdAst = commandAst.CommandElements[0];
+                var cmdletOptions = i == lastIndex ? lastCmdletOptionsInChain : nonLastCmdletOptionsInChain;
+
+                script.Append(original[(offset - start)..(cmdAst.Extent.StartOffset - start)]);
+
+                script.Append(Cmdlet.MyCommandName);
+                if (!string.IsNullOrEmpty(cmdletOptions))
+                {
+                    script.Append(' ').Append(cmdletOptions);
+                }
+                script.Append($" '{CodeGeneration.EscapeSingleQuotedStringContent(appInfo.Path)}'");
+                if (commandAst.CommandElements.Count > 1)
+                {
+                    script.Append(" --");
+                }
+
+                offset = cmdAst.Extent.EndOffset;
+            }
         }
 
         if (original.Length >= offset - start)
