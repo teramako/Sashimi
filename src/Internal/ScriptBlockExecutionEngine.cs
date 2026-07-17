@@ -7,7 +7,7 @@ namespace Sashimi.Internal;
 internal sealed class ScriptBlockExecutionEngine : ExecutionEngine
 {
     private ScriptBlockAst _ast;
-    private NativeCommandFinder _finder;
+    private ExternalCommandFinder _finder;
     private IDictionary<string, object?>? _forwardParameters;
 
     public ScriptBlockExecutionEngine(InvokeRawCommandCommand cmdlet,
@@ -20,7 +20,7 @@ internal sealed class ScriptBlockExecutionEngine : ExecutionEngine
         _ast = scriptBlockAst;
         _forwardParameters = forwardParameters;
 
-        _finder = new NativeCommandFinder(cmdlet);
+        _finder = new ExternalCommandFinder(cmdlet);
     }
 
     public override void BeginProcessing() => _ast.Visit(_finder);
@@ -53,7 +53,7 @@ internal sealed class ScriptBlockExecutionEngine : ExecutionEngine
         string cmdletOptions = ParametersToString(_forwardParameters);
         int start = _ast.EndBlock.Extent.StartOffset;
         int offset = start;
-        foreach ((var commandAst, var appInfo) in _finder.NativeCommands)
+        foreach ((var commandAst, var appInfo) in _finder.ExternalCommands)
         {
             if (commandAst.CommandElements.Count == 0)
                 continue;

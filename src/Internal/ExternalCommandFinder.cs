@@ -7,11 +7,11 @@ namespace Sashimi.Internal;
 /// A <see cref="AstVisitor"/> that scans the ScriptBlock's AST and collects
 /// command names that can be resolved as external commands (<see cref="ApplicationInfo"/>).
 /// </summary>
-internal sealed class NativeCommandFinder(PSCmdlet cmdlet) : AstVisitor
+internal sealed class ExternalCommandFinder(PSCmdlet cmdlet) : AstVisitor
 {
-    public readonly record struct NativeCommandItem(CommandAst Ast, ApplicationInfo AppInfo);
+    public readonly record struct ExternalCommandItem(CommandAst Ast, ApplicationInfo AppInfo);
 
-    public List<NativeCommandItem> NativeCommands { get; } = [];
+    public List<ExternalCommandItem> ExternalCommands { get; } = [];
 
     public override AstVisitAction VisitCommand(CommandAst commandAst)
     {
@@ -24,7 +24,7 @@ internal sealed class NativeCommandFinder(PSCmdlet cmdlet) : AstVisitor
         var command = cmdlet.InvokeCommand.GetCommand(name, CommandTypes.Application);
         if (command is ApplicationInfo appInfo)
         {
-            NativeCommands.Add(new(commandAst, appInfo));
+            ExternalCommands.Add(new(commandAst, appInfo));
         }
 
         return AstVisitAction.Continue;
