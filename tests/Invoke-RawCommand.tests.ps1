@@ -176,5 +176,98 @@ Describe 'Invoke-RawCommand' {
             $result = Invoke-RawCommand -AsString $block
             $result | Should -Be $expected
         }
+
+        It 'Passing "--" argument' {
+            $result = Invoke-RawCommand { echo -- a } | ConvertTo-RawString
+            $result | Should -Be '-- a'
+        }
+
+        It 'Accessing varibles' {
+            $str = 'abc'
+            $result = Invoke-RawCommand { printf $str } | ConvertTo-RawString
+            $result | Should -Be $str
+        }
+
+        It 'Accessing varibles (expand with "@val")' {
+            $argv = 'a b', 'c'
+            $result = Invoke-RawCommand { printf '"%s"' @argv } | ConvertTo-RawString
+            $result | Should -Be '"a b""c"'
+        }
+
+        It 'Pipeline statement' {
+            $text = "abc"
+            $expected = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($text))
+            $result = Invoke-RawCommand {
+                printf $text | base64
+            } | ConvertTo-RawString
+            $result | Should -BeExactly $expected
+        }
+
+        It 'Multi statements' {
+            $results = Invoke-RawCommand {
+                printf a;
+                printf b;
+            }
+            $results.Count | Should -Be 2
+            $results[0] | Should -BeExactly ([byte]0x61)
+            $results[1] | Should -BeExactly ([byte]0x62)
+        }
+
+        It 'Quoted arguments' {
+            $result = Invoke-RawCommand {
+                $a="a b","c d";
+                printf '[''%s''] ' @a 'e f' "g h"
+            } | ConvertTo-RawString
+            $result | Should -Be "['a b'] ['c d'] ['e f'] ['g h'] "
+        }
+
+        It 'LASTEXITCODE and if statement' {
+            $result = Invoke-RawCommand {
+                false;
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Output "Failed"
+                }
+            }
+            $result | Should -BeExactly "Failed"
+        }
+
+        It 'Propagate "-Encoding" parameter' {
+            $expected = GetBytes 'うんこ' shift_jis
+            $result = Invoke-RawCommand -Encoding shift_jis { 'うんこ' | cat }
+            CompareBytes $expected $result
+        }
+
+        It 'Propagate "-AsString" parameter' {
+            $result = Invoke-RawCommand -AsString { 'うんこ' | cat }
+            $result | Should -BeExactly 'うんこ'
+        }
+
+        It 'Propagete "-Output" parameter' {
+            Push-Location -Path $PSScriptRoot
+            $results = Invoke-RawCommand -Output Both -AsString { ./assets/redirect_test.sh } -ErrorVariable errors | Sort-Object
+            Pop-Location
+
+            $errors | Should -BeNullOrEmpty
+            $results[0] | Should -BeExactly 'StdErr'
+            $results[1] | Should -BeExactly 'StdOut'
+        }
+
+        It 'Redirection ("2>$null")' {
+            Push-Location -Path $PSScriptRoot
+            $result = Invoke-RawCommand -AsString { ./assets/redirect_test.sh 2>$null } -ErrorVariable errors
+            Pop-Location
+
+            $errors | Should -BeNullOrEmpty
+            $result | Should -Be "StdOut"
+        }
+
+        It 'Redirection (">$null 2>$null")' {
+            Push-Location -Path $PSScriptRoot
+            $result = Invoke-RawCommand { ./assets/redirect_test.sh >$null 2>$null } -ErrorVariable errors
+            Pop-Location
+
+            $errors | Should -BeNullOrEmpty
+            $result | Should -BeNullOrEmpty
+        }
     }
 }

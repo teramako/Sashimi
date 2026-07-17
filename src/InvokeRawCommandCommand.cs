@@ -1,6 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
-using System.Management.Automation.Language;
 using Sashimi.Internal;
 
 namespace Sashimi;
@@ -52,21 +50,11 @@ public class InvokeRawCommandCommand : RawCommandBase
         {
             if (Script is not null)
             {
-                if (SniffScriptBlock(Script, out var commandAst))
-                {
-                    var appInfo = GetAppInfo(commandAst.GetCommandName());
-                    Arguments = GetArguments(commandAst).ToArray();
-                    _engine = new RawExecutionEngine(this, appInfo.Path);
-                }
-                else
-                {
-                    ThrowTerminatingError(new(new NotSupportedException("The ScriptBlock contains multiple statements or pipeline elements. "
-                                                                        + "Currently only a single external command is supported: raw { cmd }."),
-                                              "NotSupported",
-                                              ErrorCategory.NotImplemented,
-                                              this));
-                    return;
-                }
+                string[] forwardKeys = [nameof(Encoding), nameof(Output), nameof(AsString)];
+                var forwardParams = MyInvocation.BoundParameters
+                                    .Where(kv => forwardKeys.Contains(kv.Key, StringComparer.InvariantCulture))
+                                    .ToDictionary();
+                _engine = new ScriptBlockExecutionEngine(this, Script, forwardParams);
             }
             else if (Command is not null)
             {
@@ -133,43 +121,6 @@ public class InvokeRawCommandCommand : RawCommandBase
                                                   this));
         }
     }
-
-    private static bool SniffScriptBlock(ScriptBlock scriptBlock, [MaybeNullWhen(false)] out CommandAst commandAst)
-    {
-        commandAst = null;
-        var ast = scriptBlock.Ast as ScriptBlockAst;
-        if (ast is null)
-            return false;
-
-        if (ast.BeginBlock?.Statements.Count > 0)
-            return false;
-
-        if (ast.ProcessBlock?.Statements.Count > 0)
-            return false;
-
-        if (ast.EndBlock.Statements.Count != 1)
-            return false;
-
-        var pipeAst = ast.EndBlock.Statements[0] as PipelineAst;
-        if (pipeAst is null)
-            return false;
-
-        if (pipeAst.PipelineElements.Count != 1)
-            return false;
-
-        commandAst = pipeAst.PipelineElements[0] as CommandAst;
-
-        return commandAst is not null;
-    }
-
-    private static IEnumerable<string> GetArguments(CommandAst commandAst)
-        => commandAst.CommandElements.Skip(1)
-                                     .Select(elem => elem switch
-                                      {
-                                          StringConstantExpressionAst str => str.Value,
-                                          ExpandableStringExpressionAst exp => exp.Value,
-                                          _ => elem.Extent.Text
-                                      });
 
     private ApplicationInfo GetAppInfo(string name)
             => InvokeCommand.GetCommand(name, CommandTypes.Application) as ApplicationInfo
