@@ -14,7 +14,7 @@ public class InvokeRawCommandCommand : RawCommandBase
 
     [Parameter(ParameterSetName = NormalParameterSet, Mandatory = true, Position = 0,
                HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Command")]
-    [ArgumentCompleter(typeof(NativeCommandCompleter))]
+    [ArgumentCompleter(typeof(ExternalCommandCompleter))]
     public string? Command { get; set; }
 
     [Parameter(ParameterSetName = NormalParameterSet, ValueFromRemainingArguments = true, Position = 1,

@@ -273,7 +273,7 @@ internal sealed class RawExecutionEngine : ExecutionEngine
                     break;
             }
 #endif
-            ErrorRecord error = new(new RemoteException(output.ToString()), "NativeCommandError", ErrorCategory.FromStdErr, output);
+            ErrorRecord error = new(new RemoteException(output.ToString()), "ExternalCommandError", ErrorCategory.FromStdErr, output);
             Cmdlet.WriteError(error);
         }
     }
