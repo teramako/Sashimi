@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## 2.0.0 - 2026-07-18
 
 ### Changed
 
@@ -13,8 +13,9 @@
 - Introduced **ScriptBlock mode** for `Invoke-RawCommand`.
   - Added `ScriptBlockExecutionEngine`, enabling raw execution inside `raw { ... }` blocks.
   - External commands inside a ScriptBlock are now detected and rewritten to use `Invoke-RawCommand` automatically.
+  - External commands inside a ScriptBlock are now grouped into chains, enabling precise control over `-AsString` propagation.
   - This allows multi-statement ScriptBlocks to be executed without the previous single-command limitation.
-  - Apply `-AsString` parameter only to the last external command in each pipeline sagment.
+  - Apply `-AsString` parameter only to the last external command in each pipeline segment.
 
 ### Fixed
 
