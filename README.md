@@ -12,10 +12,15 @@ Sashimi provides commands that communicate with external processes at the byte-s
 
 | Name                    | Alias  | Description |
 |:------------------------|:-------|:------------|
-| `Invoke-RawCommand`     | `raw`  | Execute a native command and output its StdOut/StdErr as raw `byte[]` or decoded text (`-AsString`). |
-| `ConvertFrom-RawString` | `a2b`  | Convert a `string` into a byte sequence. |
-| `ConvertTo-RawString`   | `b2a`  | Converts byte sequences to `string`s, one line at a time. |
-| `Out-RawFile`           | `bout` | Write byte sequences into a file. |
+| [Invoke-RawCommand]     | `raw`  | Execute a native command and output its StdOut/StdErr as raw `byte[]` or decoded text (`-AsString`). |
+| [ConvertFrom-RawString] | `a2b`  | Convert a `string` into a byte sequence. |
+| [ConvertTo-RawString]   | `b2a`  | Converts byte sequences to `string`s, one line at a time. |
+| [Out-RawFile]           | `bout` | Write byte sequences into a file. |
+
+[Invoke-RawCommand]: ./docs/Sashimi/en-US/Invoke-RawCommand.md "Invoke-RawCommand - cmdlet document"
+[ConvertFrom-RawString]: ./docs/Sashimi/en-US/ConvertFrom-RawString.md "ConvertFrom-RawString - cmdlet document"
+[ConvertTo-RawString]: ./docs/Sashimi/en-US/ConvertTo-RawString.md "ConvertTo-RawString - cmdlet document"
+[Out-RawFile]: ./docs/Sashimi/en-US/Out-RawFile.md "Out-RawFile - cmdlet document"
 
 ## 🍣 Installation
 
