@@ -34,7 +34,9 @@ internal sealed class RawExecutionEngine : ExecutionEngine
         Encoding = EncodingCompleter.GetEncoding(cmdlet.Encoding);
         AsString = cmdlet.AsString.ToBool();
         _redirection = Redirection.GetRedirectionFromStatement(cmdlet.MyInvocation.Statement, cmdlet.Output);
-        _runner = new RawProcessRunner(CommandPath, Arguments);
+        _runner = new RawProcessRunner(CommandPath,
+                                       Arguments,
+                                       cmdlet.SessionState.Path.CurrentFileSystemLocation.Path);
     }
 
     public override void BeginProcessing()

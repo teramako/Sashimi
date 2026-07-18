@@ -15,6 +15,11 @@
   - External commands inside a ScriptBlock are now detected and rewritten to use `Invoke-RawCommand` automatically.
   - This allows multi-statement ScriptBlocks to be executed without the previous single-command limitation.
 
+### Fixed
+
+- External commands now correctly use the current file system directory when executed in raw mode,
+  fixing issues where relative paths failed after changing location.
+
 ## 1.3.0 - 2026-07-15
 
 ### Changed
