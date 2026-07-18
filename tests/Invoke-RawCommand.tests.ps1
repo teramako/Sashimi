@@ -33,6 +33,16 @@ Describe 'Invoke-RawCommand' {
             $null = Invoke-RawCommand $cmd
             Should -BeExactly $expect -ActualValue $LASTEXITCODE
         }
+
+        It 'Proper working directory' {
+            $expected = Join-Path -Path $PSScriptRoot -ChildPath assets
+
+            Push-Location $expected
+            $dir = Invoke-RawCommand -AsString bash -- -c 'printf ${PWD}'
+            Pop-Location
+
+            $dir | Should -Be $expected
+        }
     }
 
     Context 'Input Stdin: "<text>" (from:<from> to:<to>)' -ForEach @(
@@ -42,7 +52,7 @@ Describe 'Invoke-RawCommand' {
         It 'input as bulk' {
             $bytes = GetBytes $text $from
             $expected = GetBytes $text $to
-            $result = Invoke-RawCommand iconv $argv -InputBytes $bytes
+            $result = Invoke-RawCommand iconv $argv -Input $bytes
 
             CompareBytes -Expected $expected -Actual $result
         }
@@ -61,6 +71,24 @@ Describe 'Invoke-RawCommand' {
             $result = $bytes | Invoke-RawCommand iconv $argv
 
             CompareBytes -Expected $expected -Actual $result
+        }
+    }
+
+    Context 'Input to stdin as specified encoding' {
+        It '<text> in encoding "<encoding>"' -ForEach @(
+            @{ text = 'うんこ'; encoding = $null; }
+            @{ text = 'うんこ'; encoding = 'shift_jis'; }
+            @{ text = 'うんこ'; encoding = 'euc-jp'; }
+        ) {
+            $results = if ($null -ne $encoding) {
+                $expected = GetBytes $text $encoding
+                $text | Invoke-RawCommand -Encoding $encoding cat
+            } else {
+                $expected = GetBytes $text 'utf-8'
+                $text | Invoke-RawCommand cat
+            }
+
+            CompareBytes -Expected $expected -Actual $results
         }
     }
 
@@ -147,6 +175,119 @@ Describe 'Invoke-RawCommand' {
 
             $lines = $results | ConvertTo-RawString | Sort-Object
             $lines | Should -Be @("StdErr", "StdOut")
+        }
+    }
+
+    Context 'ScriptBlock' {
+        It 'Proper arguments are passed: {<block>}' -ForEach @(
+            @{ block = { printf 'abc' }; expected = 'abc' }
+            @{ block = { printf '[''%s'']' 'a b' "`"c d`"" "e='f'" }; expected = "['a b']['`"c d`"']['e='f'']" }
+        ) {
+            $result = Invoke-RawCommand -AsString $block
+            $result | Should -Be $expected
+        }
+
+        It 'Passing "--" argument' {
+            $result = Invoke-RawCommand { echo -- a } | ConvertTo-RawString
+            $result | Should -Be '-- a'
+        }
+
+        It 'Accessing varibles' {
+            $str = 'abc'
+            $result = Invoke-RawCommand { printf $str } | ConvertTo-RawString
+            $result | Should -Be $str
+        }
+
+        It 'Accessing varibles (expand with "@val")' {
+            $argv = 'a b', 'c'
+            $result = Invoke-RawCommand { printf '"%s"' @argv } | ConvertTo-RawString
+            $result | Should -Be '"a b""c"'
+        }
+
+        It 'Pipeline statement' {
+            $text = "abc"
+            $expected = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($text))
+            $result = Invoke-RawCommand {
+                printf $text | base64
+            } | ConvertTo-RawString
+            $result | Should -BeExactly $expected
+        }
+
+        It 'Multi statements' {
+            $results = Invoke-RawCommand {
+                printf a;
+                printf b;
+            }
+            $results.Count | Should -Be 2
+            $results[0] | Should -BeExactly ([byte]0x61)
+            $results[1] | Should -BeExactly ([byte]0x62)
+        }
+
+        It 'Quoted arguments' {
+            $result = Invoke-RawCommand {
+                $a="a b","c d";
+                printf '[''%s''] ' @a 'e f' "g h"
+            } | ConvertTo-RawString
+            $result | Should -Be "['a b'] ['c d'] ['e f'] ['g h'] "
+        }
+
+        It 'LASTEXITCODE and if statement' {
+            $result = Invoke-RawCommand {
+                false;
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Output "Failed"
+                }
+            }
+            $result | Should -BeExactly "Failed"
+        }
+
+        It 'Propagate "-Encoding" parameter' {
+            $expected = GetBytes 'うんこ' shift_jis
+            $result = Invoke-RawCommand -Encoding shift_jis { 'うんこ' | cat }
+            CompareBytes $expected $result
+        }
+
+        It 'Propagate "-AsString" parameter: <name> {<script>}' -ForEach @(
+            @{ name = 'single external command';          script = { 'うんこ' | cat }; expected = 'うんこ'  }
+            @{ name = 'chained external commands'; script = { 'うんこ' | iconv -t shift_jis | base64 }; expected = 'gqSC8YKx' }
+            @{ name = 'chained external commands 2'; script = { cat ./assets/redirect_test.sh | grep ^echo | Select-Object -First 1 }; expected = 'echo "StdOut"' }
+            @{ name = 'chained external commands 3'; script = { cat ./assets/redirect_test.sh | grep ^echo | Select-Object -First 1 | tr -d ' "' }; expected = 'echoStdOut' }
+            @{ name = 'multi statements'; script = { $lines = cat ./assets/redirect_test.sh | grep ^echo; $lines[0] | tr ' "' '_@' }; expected = 'echo_@StdOut@' }
+        ) {
+            Push-Location -Path $PSScriptRoot
+            $result = Invoke-RawCommand -AsString $script -ErrorVariable errors
+            Pop-Location
+
+            $errors | Should -BeNullOrEmpty
+            $result | Should -BeExactly $expected
+        }
+
+        It 'Propagete "-Output" parameter' {
+            Push-Location -Path $PSScriptRoot
+            $results = Invoke-RawCommand -Output Both -AsString { ./assets/redirect_test.sh } -ErrorVariable errors | Sort-Object
+            Pop-Location
+
+            $errors | Should -BeNullOrEmpty
+            $results[0] | Should -BeExactly 'StdErr'
+            $results[1] | Should -BeExactly 'StdOut'
+        }
+
+        It 'Redirection ("2>$null")' {
+            Push-Location -Path $PSScriptRoot
+            $result = Invoke-RawCommand -AsString { ./assets/redirect_test.sh 2>$null } -ErrorVariable errors
+            Pop-Location
+
+            $errors | Should -BeNullOrEmpty
+            $result | Should -Be "StdOut"
+        }
+
+        It 'Redirection (">$null 2>$null")' {
+            Push-Location -Path $PSScriptRoot
+            $result = Invoke-RawCommand { ./assets/redirect_test.sh >$null 2>$null } -ErrorVariable errors
+            Pop-Location
+
+            $errors | Should -BeNullOrEmpty
+            $result | Should -BeNullOrEmpty
         }
     }
 }

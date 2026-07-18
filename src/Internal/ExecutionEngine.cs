@@ -27,6 +27,11 @@ internal abstract class ExecutionEngine(RawCommandBase cmdlet)
     {
     }
 
+    /// <inheritdoc cref="Cmdlet.ProcessRecord"/>
+    public virtual void ProcessRecord(string inputString)
+    {
+    }
+
     /// <inheritdoc cref="Cmdlet.StopProcessing"/>
     public virtual void StopProcessing()
     {

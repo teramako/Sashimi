@@ -8,7 +8,7 @@ namespace Sashimi.Internal;
 /// Provides argument completion for native executables
 /// (excluding cmdlets, functions, and aliases).
 /// </summary>
-internal class NativeCommandCompleter : IArgumentCompleter
+internal class ExternalCommandCompleter : IArgumentCompleter
 {
     public IEnumerable<CompletionResult> CompleteArgument(string commandName,
                                                           string parameterName,

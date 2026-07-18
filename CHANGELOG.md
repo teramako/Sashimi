@@ -1,5 +1,27 @@
 # Changelog
 
+## 2.0.0 - 2026-07-18
+
+### Changed
+
+- Added support for string pipeline input in `Invoke-RawCommand`.
+  String input is now encoded using the encoding specified by `-Encoding` (default: UTF-8).
+  This enables correct stdin handling for tools expecting non-UTF8 encodings such as Shift_JIS or EUC-JP.
+
+### Added
+
+- Introduced **ScriptBlock mode** for `Invoke-RawCommand`.
+  - Added `ScriptBlockExecutionEngine`, enabling raw execution inside `raw { ... }` blocks.
+  - External commands inside a ScriptBlock are now detected and rewritten to use `Invoke-RawCommand` automatically.
+  - External commands inside a ScriptBlock are now grouped into chains, enabling precise control over `-AsString` propagation.
+  - This allows multi-statement ScriptBlocks to be executed without the previous single-command limitation.
+  - Apply `-AsString` parameter only to the last external command in each pipeline segment.
+
+### Fixed
+
+- External commands now correctly use the current file system directory when executed in raw mode,
+  fixing issues where relative paths failed after changing location.
+
 ## 1.3.0 - 2026-07-15
 
 ### Changed

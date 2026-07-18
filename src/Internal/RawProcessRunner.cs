@@ -34,10 +34,11 @@ internal sealed class RawProcessRunner : IAsyncDisposable
     /// Creates a <see cref="ProcessStartInfo"/> configured for raw I/O:
     /// shell disabled, and stdin/stdout/stderr redirected.
     /// </summary>
-    public static ProcessStartInfo CreateProcessStartInfo(string fileName, IEnumerable<string> arguments)
+    public static ProcessStartInfo CreateProcessStartInfo(string fileName, IEnumerable<string> arguments, string workingDirectory)
         => new(fileName, arguments)
         {
             UseShellExecute = false,
+            WorkingDirectory = workingDirectory,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true
@@ -47,9 +48,9 @@ internal sealed class RawProcessRunner : IAsyncDisposable
     /// Initializes a new process runner for the specified executable and arguments.
     /// The process is not started until <see cref="StartAsync"/> is called.
     /// </summary>
-    public RawProcessRunner(string fileName, IEnumerable<string> arguments)
+    public RawProcessRunner(string fileName, IEnumerable<string> arguments, string workingDirectory)
     {
-        var psi = CreateProcessStartInfo(fileName, arguments);
+        var psi = CreateProcessStartInfo(fileName, arguments, workingDirectory);
         _process = new() { StartInfo = psi };
         Arguments = psi.ArgumentList.AsReadOnly();
     }

@@ -34,7 +34,9 @@ internal sealed class RawExecutionEngine : ExecutionEngine
         Encoding = EncodingCompleter.GetEncoding(cmdlet.Encoding);
         AsString = cmdlet.AsString.ToBool();
         _redirection = Redirection.GetRedirectionFromStatement(cmdlet.MyInvocation.Statement, cmdlet.Output);
-        _runner = new RawProcessRunner(CommandPath, Arguments);
+        _runner = new RawProcessRunner(CommandPath,
+                                       Arguments,
+                                       cmdlet.SessionState.Path.CurrentFileSystemLocation.Path);
     }
 
     public override void BeginProcessing()
@@ -47,6 +49,11 @@ internal sealed class RawExecutionEngine : ExecutionEngine
     public override void ProcessRecord(byte[] inputBytes)
     {
         WriteInputAsync(inputBytes, PipelineStopToken).Wait();
+    }
+
+    public override void ProcessRecord(string inputString)
+    {
+        ProcessRecord(Encoding.GetBytes(inputString));
     }
 
     public override void StopProcessing()
@@ -268,7 +275,7 @@ internal sealed class RawExecutionEngine : ExecutionEngine
                     break;
             }
 #endif
-            ErrorRecord error = new(new RemoteException(output.ToString()), "NativeCommandError", ErrorCategory.FromStdErr, output);
+            ErrorRecord error = new(new RemoteException(output.ToString()), "ExternalCommandError", ErrorCategory.FromStdErr, output);
             Cmdlet.WriteError(error);
         }
     }
