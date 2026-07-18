@@ -4,7 +4,7 @@ external help file: Sashimi.dll-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: Sashimi
-ms.date: 07/17/2026
+ms.date: 07/18/2026
 PlatyPS schema version: 2024-05-01
 title: Invoke-RawCommand
 ---
@@ -90,6 +90,7 @@ This example returns the command output as a decoded string without requiring `C
 ### -Arguments
 
 Specifies the argument list passed to the native command.
+
 Arguments are forwarded without quoting or encoding changes.
 This parameter accepts remaining arguments, allowing natural PowerShell invocation.
 
@@ -113,6 +114,7 @@ HelpMessage: ''
 ### -AsString
 
 Returns the command output as decoded text instead of raw bytes.
+
 When this switch is specified, the cmdlet internally decodes the captured `byte[]` stream using the encoding specified by the external process (or UTF‑8 if no encoding can be detected).
 This parameter is intended for convenience when working with commands that reliably produce textual output and do not require byte‑level fidelity.
 
@@ -165,6 +167,7 @@ HelpMessage: ''
 ### -Command
 
 Specifies the native executable to run.
+
 This parameter is required when using the Normal parameter set.
 
 ```yaml
@@ -251,6 +254,7 @@ HelpMessage: ''
 ### -Output
 
 Specifies which output streams to emit.
+
 Valid values are defined by the `Sashimi.OutputFrom` enum (e.g., `Stdout`, `Stderr`, `Both`).
 The selected streams are emitted as raw `byte[]` chunks.
 
@@ -280,6 +284,7 @@ HelpMessage: ''
 ### -Script
 
 Specifies a ScriptBlock whose first statement is executed as a native command.
+
 This enables natural syntax such as:
 
 ```powershell
