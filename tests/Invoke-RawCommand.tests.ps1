@@ -33,6 +33,16 @@ Describe 'Invoke-RawCommand' {
             $null = Invoke-RawCommand $cmd
             Should -BeExactly $expect -ActualValue $LASTEXITCODE
         }
+
+        It 'Proper working directory' {
+            $expected = Join-Path -Path $PSScriptRoot -ChildPath assets
+
+            Push-Location $expected
+            $dir = Invoke-RawCommand -AsString bash -- -c 'printf ${PWD}'
+            Pop-Location
+
+            $dir | Should -Be $expected
+        }
     }
 
     Context 'Input Stdin: "<text>" (from:<from> to:<to>)' -ForEach @(
