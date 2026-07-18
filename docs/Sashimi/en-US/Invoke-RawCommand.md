@@ -118,6 +118,32 @@ This parameter is intended for convenience when working with commands that relia
 
 `-AsString` cannot be used together with `ConvertTo-RawString`, since decoding is performed inside the cmdlet.
 
+> [!TIP]
+> *ScriptBlock mode behavior*:
+>
+> When using a ScriptBlock (`{ ... }`), `-AsString` is applied **only to the last external command in each external‑command chain**.
+>
+> For example:
+>
+> ```powershell
+> Invoke-RawCommand -AsString {
+>     cat path/to/file |
+>     grep 'pattern' |
+>     Select-Object -First 1 |
+>     cut -d' ' -f1
+> }
+> ```
+>
+> The pipeline contains two external‑command chains:
+>
+> - `cat` → `grep`
+> - `cut`
+>
+> Therefore, `-AsString` is applied only to:
+>
+> - `grep` (last command of the first chain)
+> - `cut`  (last command of the second chain)
+
 ```yaml
 Type: System.Management.Automation.SwitchParameter
 DefaultValue: ''
@@ -169,6 +195,11 @@ When a string is piped into `Invoke-RawCommand`, it is converted to bytes using 
 This allows tools that expect non‑UTF8 input (e.g., Shift_JIS) to receive correctly encoded data.
 
 Common values include `UTF-8`, `Shift_JIS`, `EUC-JP`, and other encodings supported by .NET.
+
+> [!TIP]
+> *ScriptBlock mode behavior*:
+>
+> Unlike `-AsString`, the specified encoding is applied **uniformly to every external command** inside the ScriptBlock.
 
 ```yaml
 Type: System.String
@@ -222,6 +253,11 @@ HelpMessage: ''
 Specifies which output streams to emit.
 Valid values are defined by the `Sashimi.OutputFrom` enum (e.g., `Stdout`, `Stderr`, `Both`).
 The selected streams are emitted as raw `byte[]` chunks.
+
+> [!TIP]
+> *ScriptBlock mode behavior*:
+>
+> Unlike `-AsString`, the specified encoding is applied **uniformly to every external command** inside the ScriptBlock.
 
 ```yaml
 Type: Sashimi.OutputFrom
