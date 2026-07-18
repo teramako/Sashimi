@@ -10,17 +10,48 @@ namespace Sashimi.Internal;
 /// </summary>
 internal sealed class ExternalCommandFinder(PSCmdlet cmdlet) : AstVisitor
 {
-    public readonly record struct ExternalCommandItem(CommandAst Ast, ApplicationInfo AppInfo);
+    public readonly record struct ExternalCommandItem(CommandAst Ast, ApplicationInfo AppInfo, int PipelinePosition = 0);
 
-    public List<ExternalCommandItem> ExternalCommands { get; } = [];
+    public List<List<ExternalCommandItem>> ExternalCommandChains = [];
 
-    public override AstVisitAction VisitCommand(CommandAst commandAst)
+    public override AstVisitAction VisitPipeline(PipelineAst pipelineAst)
     {
-        if (TryGetApplicationInfo(commandAst.GetCommandName(), out var appInfo))
+        List<ExternalCommandItem> chain = [];
+        int lastPosition = -1;
+        foreach (var item in GetExternalCommands(pipelineAst))
         {
-            ExternalCommands.Add(new(commandAst, appInfo));
+            if (item.PipelinePosition != lastPosition + 1 && chain.Count > 0)
+            {
+                ExternalCommandChains.Add(chain);
+                chain = [];
+            }
+            chain.Add(item);
+            lastPosition = item.PipelinePosition;
         }
+
+        if (chain.Count > 0)
+        {
+            ExternalCommandChains.Add(chain);
+        }
+
         return AstVisitAction.Continue;
+    }
+
+    private IEnumerable<ExternalCommandItem> GetExternalCommands(PipelineAst pipelineAst)
+    {
+        for (var i = 0; i < pipelineAst.PipelineElements.Count; i++)
+        {
+            var element = pipelineAst.PipelineElements[i];
+            if (element is CommandAst cmdAst)
+            {
+                var name = cmdAst.GetCommandName();
+                if (!TryGetApplicationInfo(name, out var appInfo))
+                {
+                    continue;
+                }
+                yield return new(cmdAst, appInfo, i);
+            }
+        }
     }
 
     private readonly Dictionary<string, ApplicationInfo> _appInfoCache = [];

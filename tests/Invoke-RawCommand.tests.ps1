@@ -247,9 +247,19 @@ Describe 'Invoke-RawCommand' {
             CompareBytes $expected $result
         }
 
-        It 'Propagate "-AsString" parameter' {
-            $result = Invoke-RawCommand -AsString { 'うんこ' | cat }
-            $result | Should -BeExactly 'うんこ'
+        It 'Propagate "-AsString" parameter: <name> {<script>}' -ForEach @(
+            @{ name = 'single external command';          script = { 'うんこ' | cat }; expected = 'うんこ'  }
+            @{ name = 'chained external commands'; script = { 'うんこ' | iconv -t shift_jis | base64 }; expected = 'gqSC8YKx' }
+            @{ name = 'chained external commands 2'; script = { cat ./assets/redirect_test.sh | grep ^echo | Select-Object -First 1 }; expected = 'echo "StdOut"' }
+            @{ name = 'chained external commands 3'; script = { cat ./assets/redirect_test.sh | grep ^echo | Select-Object -First 1 | tr -d ' "' }; expected = 'echoStdOut' }
+            @{ name = 'multi statements'; script = { $lines = cat ./assets/redirect_test.sh | grep ^echo $lines[0] | tr ' "' '_@' }; expected = 'echo_@StdOut@' }
+        ) {
+            Push-Location -Path $PSScriptRoot
+            $result = Invoke-RawCommand -AsString $script -ErrorVariable errors
+            Pop-Location
+
+            $errors | Should -BeNullOrEmpty
+            $result | Should -BeExactly $expected
         }
 
         It 'Propagete "-Output" parameter' {

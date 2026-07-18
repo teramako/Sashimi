@@ -14,6 +14,7 @@
   - Added `ScriptBlockExecutionEngine`, enabling raw execution inside `raw { ... }` blocks.
   - External commands inside a ScriptBlock are now detected and rewritten to use `Invoke-RawCommand` automatically.
   - This allows multi-statement ScriptBlocks to be executed without the previous single-command limitation.
+  - Apply `-AsString` parameter only to the last external command in each pipeline sagment.
 
 ### Fixed
 
