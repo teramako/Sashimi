@@ -38,17 +38,35 @@ Sashimi requires PowerShell 7.6 or later.
 
 ### 🌐 Common (Windows / Linux / macOS)
 
-#### Get image data and to Sixel
+#### Get image data and convert to Sixel
 
 ```powershell
-raw { curl https://..../image.png -s } | raw -s img2sixel
+raw -s { curl https://..../image.png | img2sixel }
+```
+
+Same as:
+```powershell
+raw curl -- https://..../image.png | raw -s img2sixel
+```
+
+Or using `b2a` for convenience:
+```powershell
+raw curl -- https://..../image.png | raw img2sixel | b2a
 ```
 
 #### Upload resized image via raw binary Pipeline
 
 ```powershell
+raw {
+  convert ./image.png -resize 32x32 |
+  curl -X POST --data-binary @- https://example.dummy/upload
+}
+```
+
+Same as:
+```powershell
 raw convert ./image.png -resize 32x32 - |
-  raw curl -X POST --data-binary @- https://example.com/upload
+  raw curl -X POST --data-binary @- https://example.dummy/upload
 ```
 
 ### 🪟 Windows-specific
