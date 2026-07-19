@@ -109,6 +109,15 @@ Describe 'Invoke-RawCommand' {
         }
     }
 
+    Context 'ErrorHandling' {
+        It 'Broken Pipe' {
+            function DelayedOutput { process { Start-Sleep -Milliseconds 100; $input } }
+            $result = 'a' | DelayedOutput | Invoke-RawCommand -ErrorVariable errors -ErrorAction SilentlyContinue cat --invalidParameter
+            $result | Should -BeNullOrEmpty
+            $errors.Count | Should -BeGreaterThan 0
+        }
+    }
+
     Context 'Cancel' {
         BeforeAll {
             $env:SashimiModulePath = Resolve-Path -RelativeBasePath $PSScriptRoot -Path ..

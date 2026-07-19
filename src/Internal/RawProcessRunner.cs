@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 
 namespace Sashimi.Internal;
@@ -135,10 +136,48 @@ internal sealed class RawProcessRunner : IAsyncDisposable
     /// <summary>
     /// Writes raw bytes to the process's standard input stream.
     /// </summary>
-    public Task WriteStdinAsync(byte[] buffer, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// If the external process terminates early (for example due to invalid arguments),
+    /// the stdin pipe may already be closed when attempting to write. In such cases,
+    /// <see cref="IOException"/> may be thrown with an underlying <see cref="SocketException"/>
+    /// whose <see cref="System.ComponentModel.Win32Exception.NativeErrorCode"/> is:
+    ///
+    /// <list type="bullet">
+    ///     <item><term>32</term><description><c>EPIPE</c> on Unix-like systems</description></item>
+    ///     <item><term>10054</term><description><c>WSAECONNRESET</c> on Widows</description></item>
+    /// </list>
+    ///
+    /// These error codes indicate that the process has already terminated and the pipe
+    /// has been closed, which is treated as a normal early-exit condition rather than
+    /// an actual I/O failure. Such errors are intentionally suppressed, and the stdin
+    /// stream is closed to allow the PowerShell pipeline to complete without hanging.
+    /// </remarks>
+    public async Task WriteStdinAsync(byte[] buffer, CancellationToken cancellationToken = default)
     {
-        Log($"Read StdIn: {buffer.Length} bytes", "stdin");
-        return _process.StandardInput.BaseStream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
+        if (_process.HasExited)
+        {
+            Log("The process has already exited.", "stdin");
+            return;
+        }
+
+        try
+        {
+            Log($"Read StdIn: {buffer.Length} bytes", "stdin");
+            await _process.StandardInput.BaseStream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
+        }
+        catch (IOException ioEx) when (ioEx.InnerException is SocketException
+                                        and { NativeErrorCode: 32 /* EPIPE */ or 10054 /* WSAECONNRESET (Winsock2.h) */})
+        {
+            Log($"StdIn socket has already closed. ({ioEx.Message})", "exception");
+            try
+            {
+                await _process.StandardInput.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                Log(ex, "exception");
+            }
+        }
     }
 
     /// <summary>

@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Fixed an issue where external commands that exit early (e.g., due to invalid arguments)
+  could cause `Invoke-RawCommand` to hang or throw a large `AggregateException`.  
+  Stdin writes now detect early process termination, ignore broken pipe errors,
+  and correctly close the input stream to allow the pipeline to complete.
+
 ## 2.0.0 - 2026-07-18
 
 ### Changed
