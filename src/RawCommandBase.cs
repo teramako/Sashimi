@@ -47,4 +47,8 @@ public abstract class RawCommandBase : PSCmdlet
         };
         WriteInformation(messageData, tags);
     }
+
+    protected ApplicationInfo GetAppInfo(string name)
+            => InvokeCommand.GetCommand(name, CommandTypes.Application) as ApplicationInfo
+               ?? throw new InvalidOperationException($"raw: command '{name}' not found");
 }

@@ -126,8 +126,4 @@ public class InvokeRawCommandCommand : RawCommandBase
                                                   this));
         }
     }
-
-    private ApplicationInfo GetAppInfo(string name)
-            => InvokeCommand.GetCommand(name, CommandTypes.Application) as ApplicationInfo
-               ?? throw new InvalidOperationException($"raw: command '{name}' not found");
 }
