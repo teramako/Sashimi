@@ -97,13 +97,13 @@ internal sealed class RawExecutionEngine : ExecutionEngine
             if (_redirection.StdoutTo is not RedirectTo.Null)
             {
                 _runner.OnStdout += OnOutputChunkAsString;
-                _stdoutDecoder ??= new(Encoding, Output, _redirection.StdoutTo);
+                _stdoutDecoder ??= new(Encoding, Output, _redirection.StdoutTo, OutputFrom.Stdout);
             }
 
             if (_redirection.StderrTo is not RedirectTo.Null)
             {
                 _runner.OnStderr += OnErrorChunkAsString;
-                _stderrDecoder ??= new(Encoding, Output, _redirection.StderrTo);
+                _stderrDecoder ??= new(Encoding, Output, _redirection.StderrTo, OutputFrom.Stderr);
             }
         }
         else
@@ -122,7 +122,7 @@ internal sealed class RawExecutionEngine : ExecutionEngine
                 else
                 {
                     _runner.OnStderr += OnErrorChunkAsString;
-                    _stderrDecoder ??= new(Encoding, Output, _redirection.StderrTo);
+                    _stderrDecoder ??= new(Encoding, Output, _redirection.StderrTo, OutputFrom.Stderr);
                 }
             }
         }
@@ -131,7 +131,7 @@ internal sealed class RawExecutionEngine : ExecutionEngine
 
     private void OnOutputChunk(byte[] chunk)
     {
-        Output.Add(new ChunkOutput(chunk, _redirection.StdoutTo));
+        Output.Add(new ChunkOutput(chunk, _redirection.StdoutTo, OutputFrom.Stdout));
     }
 
     private void OnOutputChunkAsString(byte[] chunk)
@@ -145,7 +145,7 @@ internal sealed class RawExecutionEngine : ExecutionEngine
 
     private void OnErrorChunk(byte[] chunk)
     {
-        Output.Add(new ChunkOutput(chunk, _redirection.StderrTo));
+        Output.Add(new ChunkOutput(chunk, _redirection.StderrTo, OutputFrom.Stderr));
     }
 
     private void OnErrorChunkAsString(byte[] chunk)
