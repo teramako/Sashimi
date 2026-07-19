@@ -58,7 +58,12 @@ public class InvokeRawCommandCommand : RawCommandBase
             }
             else if (Command is not null)
             {
-                _engine = new RawExecutionEngine(this, GetAppInfo(Command).Path);
+                _engine = new RawExecutionEngine(this,
+                                                 GetAppInfo(Command).Path,
+                                                 Arguments,
+                                                 Redirection.GetRedirectionFromStatement(MyInvocation.Statement, Output),
+                                                 EncodingCompleter.GetEncoding(Encoding),
+                                                 AsString);
             }
             else
             {

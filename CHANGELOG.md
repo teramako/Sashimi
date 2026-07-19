@@ -9,6 +9,11 @@
   Stdin writes now detect early process termination, ignore broken pipe errors,
   and correctly close the input stream to allow the pipeline to complete.
 
+### Internal
+- `RawExecutionEngine` is now extensible and no longer tied to `InvokeRawCommandCommand`.
+  This enables custom execution engines (e.g., for testing or specialized behaviors)
+  to derive from RawExecutionEngine.
+
 ## 2.0.0 - 2026-07-18
 
 ### Changed
