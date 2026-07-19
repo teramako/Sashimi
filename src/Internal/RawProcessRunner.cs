@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 
 namespace Sashimi.Internal;
@@ -135,10 +136,31 @@ internal sealed class RawProcessRunner : IAsyncDisposable
     /// <summary>
     /// Writes raw bytes to the process's standard input stream.
     /// </summary>
-    public Task WriteStdinAsync(byte[] buffer, CancellationToken cancellationToken = default)
+    public async Task WriteStdinAsync(byte[] buffer, CancellationToken cancellationToken = default)
     {
-        Log($"Read StdIn: {buffer.Length} bytes", "stdin");
-        return _process.StandardInput.BaseStream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
+        if (_process.HasExited)
+        {
+            Log("The process has already exited.", "stdin");
+            return;
+        }
+
+        try
+        {
+            Log($"Read StdIn: {buffer.Length} bytes", "stdin");
+            await _process.StandardInput.BaseStream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
+        }
+        catch (IOException ioEx) when (ioEx.InnerException is SocketException and { SocketErrorCode: SocketError.Shutdown })
+        {
+            Log($"StdIn socket has already closed. ({ioEx.Message})", "exception");
+            try
+            {
+                await _process.StandardInput.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                Log(ex, "exception");
+            }
+        }
     }
 
     /// <summary>
