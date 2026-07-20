@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- Introduced `Test-RawCommand` (alias: `raw?`)
+  - Executes an external command and returns `true` when the exit code is `0`, otherwise `false`.
+  - Emits stdout and stderr as `Information` records tagged with their originating stream.
+
 ### Fixed
 
 - Fixed an issue where external commands that exit early (e.g., due to invalid arguments)

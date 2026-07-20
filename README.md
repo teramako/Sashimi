@@ -16,11 +16,13 @@ Sashimi provides commands that communicate with external processes at the byte-s
 | [ConvertFrom-RawString] | `a2b`  | Convert a `string` into a byte sequence. |
 | [ConvertTo-RawString]   | `b2a`  | Converts byte sequences to `string`s, one line at a time. |
 | [Out-RawFile]           | `bout` | Write byte sequences into a file. |
+| [Test-RawCommand]       | `raw?` | executes an external command and evaluates its success based on the process’s exit code. |
 
 [Invoke-RawCommand]: ./docs/Sashimi/en-US/Invoke-RawCommand.md "Invoke-RawCommand - cmdlet document"
 [ConvertFrom-RawString]: ./docs/Sashimi/en-US/ConvertFrom-RawString.md "ConvertFrom-RawString - cmdlet document"
 [ConvertTo-RawString]: ./docs/Sashimi/en-US/ConvertTo-RawString.md "ConvertTo-RawString - cmdlet document"
 [Out-RawFile]: ./docs/Sashimi/en-US/Out-RawFile.md "Out-RawFile - cmdlet document"
+[Test-RawCommand]: ./docs/Sashimi/en-US/Test-RawCommand.md "Test-RawCommand - cmdlet document"
 
 ## 🍣 Installation
 
