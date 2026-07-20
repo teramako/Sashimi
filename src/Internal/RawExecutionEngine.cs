@@ -37,9 +37,21 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
 
     public override void BeginProcessing()
     {
-        StartAsync(PipelineStopToken);
-        WriteVerboseRaw($"{_logPrefix} Started process with arguments: [{string.Join(", ", Arguments)}] ({StartTime.ToLocalTime():HH:mm:ss.fff})");
-        WriteVerboseRaw($"Stdout -> {_redirection.StdoutTo}, Stderr -> {_redirection.StderrTo}");
+        try
+        {
+            StartAsync(PipelineStopToken);
+            WriteVerboseRaw($"{_logPrefix} Started process with arguments: [{string.Join(", ", Arguments)}] ({StartTime.ToLocalTime():HH:mm:ss.fff})");
+            WriteVerboseRaw($"Stdout -> {_redirection.StdoutTo}, Stderr -> {_redirection.StderrTo}");
+        }
+        catch (Exception ex)
+        {
+            Runner.Log(ex, "exception");
+            throw;
+        }
+        finally
+        {
+            PrintDebugMessages();
+        }
     }
 
     public override void ProcessRecord(byte[] inputBytes)
@@ -72,12 +84,13 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
             WriteVerboseRaw($"{_logPrefix} End [ExitCode = {exitCode}]"
                             + $" ({ExitTime.ToLocalTime():HH:mm:ss.fff},"
                             + $" Duration={ExitTime - StartTime}))");
-            Cmdlet.SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
+            Cmdlet.SetLastExitCode(exitCode);
 
         }
-        catch
+        catch (Exception ex)
         {
-            Cmdlet.SessionState.PSVariable.Set("LASTEXITCODE", 1);
+            Runner.Log(ex, "exception");
+            Cmdlet.SetLastExitCode(-1);
             throw;
         }
         finally
