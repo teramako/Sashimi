@@ -2,12 +2,23 @@
 
 ## [Unreleased]
 
+### Added
+
+- Introduced `Test-RawCommand` (alias: `raw?`)
+  - Executes an external command and returns `true` when the exit code is `0`, otherwise `false`.
+  - Emits stdout and stderr as `Information` records tagged with their originating stream.
+
 ### Fixed
 
 - Fixed an issue where external commands that exit early (e.g., due to invalid arguments)
   could cause `Invoke-RawCommand` to hang or throw a large `AggregateException`.  
   Stdin writes now detect early process termination, ignore broken pipe errors,
   and correctly close the input stream to allow the pipeline to complete.
+
+### Internal
+- `RawExecutionEngine` is now extensible and no longer tied to `InvokeRawCommandCommand`.
+  This enables custom execution engines (e.g., for testing or specialized behaviors)
+  to derive from RawExecutionEngine.
 
 ## 2.0.0 - 2026-07-18
 

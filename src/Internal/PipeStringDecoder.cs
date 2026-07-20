@@ -11,11 +11,16 @@ internal sealed class PipeStringDecoder : IAsyncDisposable
     private readonly Task _pipeTask;
     private readonly BlockingCollection<RawOutputRecord> _output;
     private readonly RedirectTo _to;
+    private readonly OutputFrom _from;
 
-    public PipeStringDecoder(Encoding encoding, BlockingCollection<RawOutputRecord> output, RedirectTo to)
+    public PipeStringDecoder(Encoding encoding,
+                             BlockingCollection<RawOutputRecord> output,
+                             RedirectTo to,
+                             OutputFrom from)
     {
         _output = output;
         _to = to;
+        _from = from;
         _server = new(PipeDirection.Out, HandleInheritability.None);
         _client = new(PipeDirection.In, _server.ClientSafePipeHandle);
         _pipeTask = AsyncDecode(_client, encoding);
@@ -49,7 +54,7 @@ internal sealed class PipeStringDecoder : IAsyncDisposable
                 break;
 
             // PrintDebug("Set string line");
-            _output.Add(new StringOutput(line, _to));
+            _output.Add(new StringOutput(line, _to, _from));
         }
 
         try
@@ -57,7 +62,7 @@ internal sealed class PipeStringDecoder : IAsyncDisposable
             var rest = sr.ReadToEnd();
             if (!string.IsNullOrEmpty(rest))
             {
-                _output.Add(new StringOutput(rest, _to));
+                _output.Add(new StringOutput(rest, _to, _from));
             }
         }
         catch

@@ -72,13 +72,13 @@ NestedModules = @('libs/Sashimi.dll')
 FunctionsToExport = @()
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
-CmdletsToExport = 'Invoke-RawCommand', 'ConvertFrom-RawString', 'ConvertTo-RawString', 'Out-RawFile'
+CmdletsToExport = 'Invoke-RawCommand', 'ConvertFrom-RawString', 'ConvertTo-RawString', 'Out-RawFile', 'Test-RawCommand'
 
 # Variables to export from this module
 # VariablesToExport = @()
 
 # Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.
-AliasesToExport = 'raw', 'a2b', 'b2a', 'bout'
+AliasesToExport = 'raw', 'a2b', 'b2a', 'bout', 'raw?'
 
 # DSC resources to export from this module
 # DscResourcesToExport = @()
