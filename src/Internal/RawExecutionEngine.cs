@@ -90,7 +90,6 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
         catch (Exception ex)
         {
             Runner.Log(ex, "exception");
-            Cmdlet.SetLastExitCode(-1);
             throw;
         }
         finally
