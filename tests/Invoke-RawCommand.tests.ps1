@@ -118,6 +118,34 @@ Describe 'Invoke-RawCommand' {
         }
     }
 
+    Context 'ThrowOnError' {
+        BeforeAll {
+            ($exe, $arguments) = if ($IsWindows) {
+                'cmd', @('/c', 'exit 1')
+            } else {
+                'sh', @('-c', 'exit 1')
+            }
+        }
+        It 'Not specified `-ThrowOnError` parameter' {
+            { Invoke-RawCommand $exe @arguments } | Should -Not -Throw
+        }
+        It 'Specified `-ThrowOnError` parameter' {
+            try {
+                Invoke-RawCommand -ThrowOnError $exe @arguments
+            } catch {
+                $err = $_
+            }
+
+            $err | Should -Not -BeNullOrEmpty
+
+            $err.FullyQualifiedErrorId | Should -BeLike 'ExternalCommandNonZeroExitCode,*'
+            $err.CategoryInfo.Category | Should -Be 'InvalidResult'
+
+            $err.Exception | Should -BeOfType [Sashimi.ExternalCommandNonZeroExitException]
+            $err.Exception.ExitCode | Should -BeGreaterThan 0
+        }
+    }
+
     Context 'Cancel' {
         BeforeAll {
             $env:SashimiModulePath = Resolve-Path -RelativeBasePath $PSScriptRoot -Path ..
