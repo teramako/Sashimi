@@ -50,7 +50,7 @@ public abstract class RawCommandBase : PSCmdlet
 
     protected ApplicationInfo GetAppInfo(string name)
             => InvokeCommand.GetCommand(name, CommandTypes.Application) as ApplicationInfo
-               ?? throw new InvalidOperationException($"raw: command '{name}' not found");
+               ?? throw new CommandNotFoundException($"raw: command '{name}' not found");
 
     /// <summary>
     /// Set `LASTEXITCODE` to <paramref name="exitCode"/>

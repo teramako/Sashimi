@@ -8,6 +8,9 @@
   (e.g., command not found, permission error, internal error).
   This behavior now matches PowerShell’s own behavior.
 
+- Replaced `InvalidOperationException` with `CommandNotFoundException` when a command cannot be resolved.
+  This aligns the error behavior with PowerShell’s standard command resolution errors.
+
 ### Added
 
 - Introduced `Test-RawCommand` (alias: `raw?`)
