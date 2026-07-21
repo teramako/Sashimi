@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `LASTEXITCODE` is no longer set when the exit code of an external command cannot be retrieved
+  (e.g., command not found, permission error, internal error).
+  This behavior now matches PowerShell’s own behavior.
+
 ### Added
 
 - Introduced `Test-RawCommand` (alias: `raw?`)

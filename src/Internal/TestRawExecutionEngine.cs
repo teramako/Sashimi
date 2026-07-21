@@ -25,12 +25,11 @@ internal sealed class TestRawExecutionEngine(RawCommandBase cmdlet,
         {
             var exitCode = exitTask.GetAwaiter().GetResult();
             WriteObject(exitCode == 0);
-            Cmdlet.SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
+            Cmdlet.SetLastExitCode(exitCode);
         }
         catch
         {
             WriteObject(false);
-            Cmdlet.SessionState.PSVariable.Set("LASTEXITCODE", 1);
             throw;
         }
         finally
