@@ -11,7 +11,8 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
                                   string[] arguments,
                                   Redirection redirection,
                                   Encoding encoding,
-                                  bool asString = false)
+                                  bool asString = false,
+                                  bool throwOnNonZeroExitCode = false)
     : ExecutionEngine(cmdlet)
 {
     protected RawProcessRunner Runner { get; } = new(commandPath,
@@ -21,6 +22,7 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
     protected string[] Arguments { get; } = arguments;
     protected Encoding Encoding { get; } = encoding;
     protected bool AsString { get; } = asString;
+    protected bool ThrowOnNonZeroExitCode { get; } = throwOnNonZeroExitCode;
 
     private PipeStringDecoder? _stdoutDecoder;
     private PipeStringDecoder? _stderrDecoder;
@@ -86,6 +88,10 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
                             + $" Duration={ExitTime - StartTime}))");
             Cmdlet.SetLastExitCode(exitCode);
 
+            if (exitCode != 0 && ThrowOnNonZeroExitCode)
+            {
+                throw new ExternalCommandNonZeroExitException($"'{CommandPath}' exited with {exitCode}", exitCode);
+            }
         }
         catch (Exception ex)
         {
