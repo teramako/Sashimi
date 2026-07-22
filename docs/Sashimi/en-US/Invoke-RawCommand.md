@@ -4,7 +4,7 @@ external help file: Sashimi.dll-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: Sashimi
-ms.date: 07/18/2026
+ms.date: 07/21/2026
 PlatyPS schema version: 2024-05-01
 title: Invoke-RawCommand
 ---
@@ -21,14 +21,14 @@ Executes a native command and returns its output as raw bytes or decoded text.
 
 ```
 Invoke-RawCommand [-Command] <string> [[-Arguments] <string[]>] [-Input <Object>]
- [-Output <OutputFrom>] [-AsString] [-Encoding <string>] [<CommonParameters>]
+ [-Output <OutputFrom>] [-AsString] [-Encoding <string>] [-ThrowOnError] [<CommonParameters>]
 ```
 
 ### ScriptBlock
 
 ```
 Invoke-RawCommand [-Script] <scriptblock> [-Input <Object>] [-Output <OutputFrom>] [-AsString]
- [-Encoding <string>] [<CommonParameters>]
+ [-Encoding <string>] [-ThrowOnError] [<CommonParameters>]
 ```
 
 ## ALIASES
@@ -310,6 +310,30 @@ AcceptedValues: []
 HelpMessage: ''
 ```
 
+### -ThrowOnError
+
+Throw an exception (`ExternalCommandNonZeroExit`) when
+the external command completed but returned non-zero exit code.
+
+```yaml
+Type: System.Management.Automation.SwitchParameter
+DefaultValue: ''
+SupportsWildcards: false
+Aliases:
+- t
+- ex
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
 ### CommonParameters
 
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable,
@@ -321,11 +345,11 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ### System.Byte
 
-A single byte value can be piped to `-InputBytes`, which is written directly to the process’s stdin.
+A single byte value can be piped to `-Input`, which is written directly to the process’s stdin.
 
 ### System.Byte[]
 
-A byte array can be piped to `-InputBytes`. Each array is forwarded as-is to the process’s stdin stream.
+A byte array can be piped to `-Input`. Each array is forwarded as-is to the process’s stdin stream.
 
 ### System.String
 

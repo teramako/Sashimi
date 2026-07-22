@@ -11,11 +11,17 @@
 - Replaced `InvalidOperationException` with `CommandNotFoundException` when a command cannot be resolved.
   This aligns the error behavior with PowerShell’s standard command resolution errors.
 
+- Non-zero exit code failures now use a dedicated ErrorId (`ExternalCommandNonZeroExit`)
+  and `InvalidResult` category, clearly separated from internal processing errors.
+
 ### Added
 
 - Introduced `Test-RawCommand` (alias: `raw?`)
   - Executes an external command and returns `true` when the exit code is `0`, otherwise `false`.
   - Emits stdout and stderr as `Information` records tagged with their originating stream.
+
+- `ExternalCommandNonZeroExitException` is now thrown when `Invoke-RawCommand`
+  is executed with `-ThrowOnError` and the external command returns a non-zero exit code.
 
 ### Fixed
 

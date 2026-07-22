@@ -42,6 +42,10 @@ public class InvokeRawCommandCommand : RawCommandBase
     [Alias("e")]
     public string Encoding { get; set; } = "UTF-8";
 
+    [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.ThrowOnError")]
+    [Alias("t", "ex")]
+    public SwitchParameter ThrowOnError { get; set; }
+
     private ExecutionEngine? _engine;
 
     protected override void BeginProcessing()
@@ -50,7 +54,7 @@ public class InvokeRawCommandCommand : RawCommandBase
         {
             if (Script is not null)
             {
-                string[] forwardKeys = [nameof(Encoding), nameof(Output), nameof(AsString)];
+                string[] forwardKeys = [nameof(Encoding), nameof(Output), nameof(AsString), nameof(ThrowOnError)];
                 var forwardParams = MyInvocation.BoundParameters
                                     .Where(kv => forwardKeys.Contains(kv.Key, StringComparer.InvariantCulture))
                                     .ToDictionary();
@@ -63,7 +67,8 @@ public class InvokeRawCommandCommand : RawCommandBase
                                                  Arguments,
                                                  Redirection.GetRedirectionFromStatement(MyInvocation.Statement, Output),
                                                  EncodingCompleter.GetEncoding(Encoding),
-                                                 AsString);
+                                                 AsString,
+                                                 ThrowOnError);
             }
             else
             {
@@ -118,7 +123,14 @@ public class InvokeRawCommandCommand : RawCommandBase
         {
             _engine?.EndProcessing();
         }
-        catch(Exception ex)
+        catch (ExternalCommandNonZeroExitException ex)
+        {
+            ThrowTerminatingError(new ErrorRecord(ex,
+                                                  "ExternalCommandNonZeroExit",
+                                                  ErrorCategory.InvalidResult,
+                                                  this));
+        }
+        catch (Exception ex)
         {
             ThrowTerminatingError(new ErrorRecord(ex,
                                                   "RawCommandProcessCompletionFailed",
