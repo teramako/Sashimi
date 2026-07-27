@@ -62,6 +62,10 @@ internal sealed class RawProcessRunner : IAsyncDisposable
     private Task _outputTask = null!;
     private CancellationTokenRegistration? _killRegistration;
 
+    private readonly record struct RawChunk(OutputFrom From, byte[] Data);
+    private readonly BlockingCollection<RawChunk> _outputQueue = new();
+    private Task _outputQueueTask = null!;
+
     /// <summary>
     /// Gets the executable file name of the process.
     /// </summary>
@@ -128,6 +132,7 @@ internal sealed class RawProcessRunner : IAsyncDisposable
             Kill();
         });
 
+        _outputQueueTask = Task.Run(async () => await OutputLoop(cancellationToken));
         _outputTask = Task.Run(async () =>
             await Task.WhenAll(ReadStdoutLoop(cancellationToken),
                                ReadStderrLoop(cancellationToken)));
@@ -204,9 +209,9 @@ internal sealed class RawProcessRunner : IAsyncDisposable
             while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
             {
                 Log($"OnStdout: {read} bytes", "stdout");
-                OnStdout?.Invoke(buffer.AsSpan(0, read).ToArray());
+                _outputQueue.Add(new(OutputFrom.Stdout, buffer[0..read]));
             }
-            Log($"End OnStdout", "stderr");
+            Log($"End OnStdout", "stdout");
         }
         catch (OperationCanceledException ex)
         {
@@ -230,7 +235,7 @@ internal sealed class RawProcessRunner : IAsyncDisposable
             while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
             {
                 Log($"OnStderr: {read} bytes", "stderr");
-                OnStderr?.Invoke(buffer.AsSpan(0, read).ToArray());
+                _outputQueue.Add(new(OutputFrom.Stderr, buffer[0..read]));
             }
             Log($"End OnStderr", "stderr");
         }
@@ -239,6 +244,32 @@ internal sealed class RawProcessRunner : IAsyncDisposable
             Log(ex, "exception");
             // quiet stop on cancellation
         }
+    }
+
+    /// <summary>
+    /// Asynchronously retrieves each chunk of stdout and stderr accumulated in
+    /// <see cref="_outputQueue"/> and emit it to the event handler for
+    /// <see cref="OnStdout"/> or <see cref="OnStderr"/>.
+    /// </summary>
+    private async Task OutputLoop(CancellationToken cancellationToken)
+    {
+        try
+        {
+            foreach (var chunk in _outputQueue.GetConsumingEnumerable(cancellationToken))
+            {
+                var action = chunk.From is OutputFrom.Stdout ? OnStdout : OnStderr;
+                try
+                {
+                    action?.Invoke(chunk.Data);
+                }
+                catch (Exception ex)
+                {
+                    Log(ex, "exception");
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        { }
     }
 
     /// <summary>
@@ -311,6 +342,9 @@ internal sealed class RawProcessRunner : IAsyncDisposable
         {
             Log(ex, "stderr");
         }
+
+        _outputQueue.CompleteAdding();
+        await _outputQueueTask;
     }
 
     /// <summary>
@@ -375,8 +409,11 @@ internal sealed class RawProcessRunner : IAsyncDisposable
         Kill();
         try
         {
-            if (_outputTask is not null)
-                await _outputTask;
+            if (!_outputQueue.IsAddingCompleted)
+                _outputQueue.CompleteAdding();
+
+            if (_outputQueueTask is not null)
+                await _outputQueueTask;
         }
         catch(Exception ex)
         {
@@ -384,5 +421,6 @@ internal sealed class RawProcessRunner : IAsyncDisposable
         }
         _process.Dispose();
         _pid = -1;
+        _outputQueue.Dispose();
     }
 }

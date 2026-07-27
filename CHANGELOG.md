@@ -4,6 +4,11 @@
 
 ### Changed
 
+- `RawProcessRunner` now preserves stdout/stderr output order by introducing
+  a unified internal output queue and a single-threaded OutputLoop.
+  This eliminates timing-dependent interleaving of output events and improves
+  consistency when external commands write to both streams.
+
 - `LASTEXITCODE` is no longer set when the exit code of an external command cannot be retrieved
   (e.g., command not found, permission error, internal error).
   This behavior now matches PowerShell’s own behavior.
@@ -31,6 +36,9 @@
   and correctly close the input stream to allow the pipeline to complete.
 
 ### Internal
+
+- Added `RawChunk` as a private nested type within RawProcessRunner.
+- Removed legacy direct event invocation from read loops.
 - `RawExecutionEngine` is now extensible and no longer tied to `InvokeRawCommandCommand`.
   This enables custom execution engines (e.g., for testing or specialized behaviors)
   to derive from RawExecutionEngine.
