@@ -37,6 +37,7 @@
 
 ### Internal
 
+- Replace internal pipe-based string decoder with unified chunk-based decoder for consistent output behavior.
 - Added `RawChunk` as a private nested type within RawProcessRunner.
 - Removed legacy direct event invocation from read loops.
 - `RawExecutionEngine` is now extensible and no longer tied to `InvokeRawCommandCommand`.
