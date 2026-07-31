@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
+using System.Threading.Channels;
 
 namespace Sashimi.Internal;
 
@@ -63,7 +64,38 @@ internal sealed class RawProcessRunner : IAsyncDisposable
     private CancellationTokenRegistration? _killRegistration;
 
     private readonly record struct RawChunk(OutputFrom From, byte[] Data);
-    private readonly BlockingCollection<RawChunk> _outputQueue = new();
+
+    /// <summary>
+    /// Bounded channel for stdout/stderr chunk delivery.
+    /// <list type="bullet">
+    ///     <item>
+    ///         <term>Capacity = 255</term>
+    ///         <description>small enough to avoid unbounded memory growth,
+    ///         large enough to prevent backpressure under normal process output rates.</description>
+    ///     </item>
+    ///     <item>
+    ///         <term>AllowSynchronousContinuations = false</term>
+    ///         <description>avoid running consumer continuations on producer threads,
+    ///         keeping <c>ReadAsync()</c> fast and preventing ordering jitter.</description>
+    ///     </item>
+    ///     <item>
+    ///         <term>SingleReader = true</term>
+    ///         <description>OutputLoop is the only consumer.</description>
+    ///     </item>
+    ///     <item>
+    ///         <term>SingleWriter = false</term>
+    ///         <description>stdout/stderr read loops are independent producers.</description>
+    ///     </item>
+    /// </list>
+    /// </summary>
+    private readonly Channel<RawChunk> _outputChannel = Channel.CreateBounded<RawChunk>(new BoundedChannelOptions(255)
+    {
+        AllowSynchronousContinuations = false,
+        FullMode = BoundedChannelFullMode.Wait,
+        SingleReader = true,
+        SingleWriter = false,
+    });
+
     private Task _outputQueueTask = null!;
 
     /// <summary>
@@ -114,7 +146,7 @@ internal sealed class RawProcessRunner : IAsyncDisposable
         _sw.Start();
 #endif
         _pid = _process.Id;
-        Log("Started", "process");
+        Log($"Started: {Name} [{string.Join(' ', Arguments)}]", "process");
         try
         {
             StartTime = _process.StartTime.ToUniversalTime();
@@ -201,7 +233,7 @@ internal sealed class RawProcessRunner : IAsyncDisposable
     private async Task ReadStdoutLoop(CancellationToken cancellationToken = default)
     {
         var stream = _process.StandardOutput.BaseStream;
-        var buffer = new byte[BufferSize];
+        Memory<byte> buffer = new byte[BufferSize];
 
         try
         {
@@ -209,7 +241,7 @@ internal sealed class RawProcessRunner : IAsyncDisposable
             while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
             {
                 Log($"OnStdout: {read} bytes", "stdout");
-                _outputQueue.Add(new(OutputFrom.Stdout, buffer[0..read]));
+                await _outputChannel.Writer.WriteAsync(new(OutputFrom.Stdout, buffer.Span[..read].ToArray()), cancellationToken);
             }
             Log($"End OnStdout", "stdout");
         }
@@ -227,7 +259,7 @@ internal sealed class RawProcessRunner : IAsyncDisposable
     private async Task ReadStderrLoop(CancellationToken cancellationToken = default)
     {
         var stream = _process.StandardError.BaseStream;
-        var buffer = new byte[BufferSize];
+        Memory<byte> buffer = new byte[BufferSize];
 
         try
         {
@@ -235,7 +267,7 @@ internal sealed class RawProcessRunner : IAsyncDisposable
             while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
             {
                 Log($"OnStderr: {read} bytes", "stderr");
-                _outputQueue.Add(new(OutputFrom.Stderr, buffer[0..read]));
+                await _outputChannel.Writer.WriteAsync(new(OutputFrom.Stderr, buffer.Span[..read].ToArray()), cancellationToken);
             }
             Log($"End OnStderr", "stderr");
         }
@@ -248,14 +280,14 @@ internal sealed class RawProcessRunner : IAsyncDisposable
 
     /// <summary>
     /// Asynchronously retrieves each chunk of stdout and stderr accumulated in
-    /// <see cref="_outputQueue"/> and emit it to the event handler for
+    /// <see cref="_outputChannel"/> and emit it to the event handler for
     /// <see cref="OnStdout"/> or <see cref="OnStderr"/>.
     /// </summary>
     private async Task OutputLoop(CancellationToken cancellationToken)
     {
         try
         {
-            foreach (var chunk in _outputQueue.GetConsumingEnumerable(cancellationToken))
+            await foreach (var chunk in _outputChannel.Reader.ReadAllAsync(cancellationToken))
             {
                 var action = chunk.From is OutputFrom.Stdout ? OnStdout : OnStderr;
                 try
@@ -343,7 +375,9 @@ internal sealed class RawProcessRunner : IAsyncDisposable
             Log(ex, "stderr");
         }
 
-        _outputQueue.CompleteAdding();
+        // Signal completion to the reader. TryComplete() is safe to call multiple times
+        // and guarantees that ReadAllAsync() will eventually finish without throwing.
+        _outputChannel.Writer.TryComplete();
         await _outputQueueTask;
     }
 
@@ -409,8 +443,9 @@ internal sealed class RawProcessRunner : IAsyncDisposable
         Kill();
         try
         {
-            if (!_outputQueue.IsAddingCompleted)
-                _outputQueue.CompleteAdding();
+            // Ensure OutputLoop has fully drained the channel before disposing the process.
+            // This avoids race conditions where stdout/stderr read loops outlive the reader.
+            _outputChannel.Writer.TryComplete();
 
             if (_outputQueueTask is not null)
                 await _outputQueueTask;
@@ -421,6 +456,5 @@ internal sealed class RawProcessRunner : IAsyncDisposable
         }
         _process.Dispose();
         _pid = -1;
-        _outputQueue.Dispose();
     }
 }
