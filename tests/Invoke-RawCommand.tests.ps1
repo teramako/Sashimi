@@ -138,7 +138,7 @@ Describe 'Invoke-RawCommand' {
 
             $err | Should -Not -BeNullOrEmpty
 
-            $err.FullyQualifiedErrorId | Should -BeLike 'ExternalCommandNonZeroExitCode,*'
+            $err.FullyQualifiedErrorId | Should -BeLike 'ExternalCommandNonZeroExit,*'
             $err.CategoryInfo.Category | Should -Be 'InvalidResult'
 
             $err.Exception | Should -BeOfType [Sashimi.ExternalCommandNonZeroExitException]
