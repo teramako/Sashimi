@@ -41,7 +41,7 @@ public sealed class ConvertToRawStringCommand : RawCommandBase
         try
         {
             var encoding = EncodingCompleter.GetEncoding(Encoding);
-            _stringDecoder = new(encoding, Output, Raw.ToBool());
+            _stringDecoder = new(this, encoding, Output, Raw.ToBool());
             WriteVerboseRaw($"Set encoding: {encoding.WebName} [{encoding.EncodingName}]");
         }
         catch(Exception ex)
@@ -73,5 +73,7 @@ public sealed class ConvertToRawStringCommand : RawCommandBase
         {
             WriteVerboseRaw($"Output total line: {_lineCount}");
         }
+
+        FlushDebugMessages();
     }
 }
