@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Net.Sockets;
@@ -14,21 +13,14 @@ namespace Sashimi.Internal;
 internal sealed class RawProcessRunner : IAsyncDisposable
 {
 #if DEBUG
-    public record DebugMsg(TimeSpan TimeSpan, int Pid, string Category, string Source, object Message)
-    {
-        public override string ToString()
-            => $"({TimeSpan})[{Pid}]{Source,-25} {Category,10}: {Message}";
-    }
-    private readonly Stopwatch _sw = new();
-    private readonly ConcurrentQueue<DebugMsg> _messages = new();
-    public DebugMsg[] DebugMsgs => _messages.ToArray();
+    private Logger? _debugLogger;
 #endif
 
     [Conditional("DEBUG")]
-    public void Log(object msg, string category, [CallerMemberName] string callerMethodName = "", [CallerLineNumber] int callerLineNumber = 0)
+    public void DebugLog(object msg, string category, [CallerMemberName] string callerMethodName = "", [CallerLineNumber] int callerLineNumber = 0)
     {
 #if DEBUG
-        _messages.Enqueue(new(_sw.Elapsed, _pid, category, $"{callerMethodName}:{callerLineNumber}", msg));
+        _debugLogger?.Log(msg, _pid, category, callerMethodName, callerLineNumber);
 #endif
     }
 
@@ -50,8 +42,11 @@ internal sealed class RawProcessRunner : IAsyncDisposable
     /// Initializes a new process runner for the specified executable and arguments.
     /// The process is not started until <see cref="StartAsync"/> is called.
     /// </summary>
-    public RawProcessRunner(string fileName, IEnumerable<string> arguments, string workingDirectory)
+    public RawProcessRunner(string fileName, IEnumerable<string> arguments, string workingDirectory, long id)
     {
+#if DEBUG
+        _debugLogger = Logger.GetLogger(id);
+#endif
         var psi = CreateProcessStartInfo(fileName, arguments, workingDirectory);
         _process = new() { StartInfo = psi };
         Arguments = psi.ArgumentList.AsReadOnly();
@@ -142,11 +137,8 @@ internal sealed class RawProcessRunner : IAsyncDisposable
     public void Start(CancellationToken cancellationToken = default)
     {
         _process.Start();
-#if DEBUG
-        _sw.Start();
-#endif
         _pid = _process.Id;
-        Log($"Started: {Name} [{string.Join(' ', Arguments)}]", "process");
+        DebugLog($"Started: {Name} [{string.Join(' ', Arguments)}]", "process");
         try
         {
             StartTime = _process.StartTime.ToUniversalTime();
@@ -160,7 +152,7 @@ internal sealed class RawProcessRunner : IAsyncDisposable
         // Ensure the process terminates properly upon cancellation
         _killRegistration = cancellationToken.Register(() =>
         {
-            Log("Killing on cancellationToken", "lifecycle");
+            DebugLog("Killing on cancellationToken", "lifecycle");
             Kill();
         });
 
@@ -193,26 +185,26 @@ internal sealed class RawProcessRunner : IAsyncDisposable
     {
         if (_process.HasExited)
         {
-            Log("The process has already exited.", "stdin");
+            DebugLog("The process has already exited.", "stdin");
             return;
         }
 
         try
         {
-            Log($"Read StdIn: {buffer.Length} bytes", "stdin");
+            DebugLog($"Read StdIn: {buffer.Length} bytes", "stdin");
             await _process.StandardInput.BaseStream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
         }
         catch (IOException ioEx) when (ioEx.InnerException is SocketException
                                         and { NativeErrorCode: 32 /* EPIPE */ or 10054 /* WSAECONNRESET (Winsock2.h) */})
         {
-            Log($"StdIn socket has already closed. ({ioEx.Message})", "exception");
+            DebugLog($"StdIn socket has already closed. ({ioEx.Message})", "exception");
             try
             {
                 await _process.StandardInput.DisposeAsync();
             }
             catch (Exception ex)
             {
-                Log(ex, "exception");
+                DebugLog(ex, "exception");
             }
         }
     }
@@ -222,7 +214,7 @@ internal sealed class RawProcessRunner : IAsyncDisposable
     /// </summary>
     public void CloseStdin()
     {
-        Log("Close StdIn", "lifecycle");
+        DebugLog("Close StdIn", "lifecycle");
         _process.StandardInput.Close();
     }
 
@@ -240,14 +232,14 @@ internal sealed class RawProcessRunner : IAsyncDisposable
             int read;
             while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
             {
-                Log($"OnStdout: {read} bytes", "stdout");
+                DebugLog($"OnStdout: {read} bytes", "stdout");
                 await _outputChannel.Writer.WriteAsync(new(OutputFrom.Stdout, buffer.Span[..read].ToArray()), cancellationToken);
             }
-            Log($"End OnStdout", "stdout");
+            DebugLog($"End OnStdout", "stdout");
         }
         catch (OperationCanceledException ex)
         {
-            Log(ex, "exception");
+            DebugLog(ex, "exception");
             // quiet stop on cancellation
         }
     }
@@ -266,14 +258,14 @@ internal sealed class RawProcessRunner : IAsyncDisposable
             int read;
             while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
             {
-                Log($"OnStderr: {read} bytes", "stderr");
+                DebugLog($"OnStderr: {read} bytes", "stderr");
                 await _outputChannel.Writer.WriteAsync(new(OutputFrom.Stderr, buffer.Span[..read].ToArray()), cancellationToken);
             }
-            Log($"End OnStderr", "stderr");
+            DebugLog($"End OnStderr", "stderr");
         }
         catch (OperationCanceledException ex)
         {
-            Log(ex, "exception");
+            DebugLog(ex, "exception");
             // quiet stop on cancellation
         }
     }
@@ -296,7 +288,7 @@ internal sealed class RawProcessRunner : IAsyncDisposable
                 }
                 catch (Exception ex)
                 {
-                    Log(ex, "exception");
+                    DebugLog(ex, "exception");
                 }
             }
         }
@@ -314,11 +306,11 @@ internal sealed class RawProcessRunner : IAsyncDisposable
         {
             _process.Kill(entireProcessTree: true);
             ExitTime = _process.ExitTime.ToUniversalTime();
-            Log("Killed", "process");
+            DebugLog("Killed", "process");
         }
         catch(Exception ex)
         {
-            Log(ex, "exception");
+            DebugLog(ex, "exception");
         }
     }
 
@@ -341,7 +333,7 @@ internal sealed class RawProcessRunner : IAsyncDisposable
     /// </exception>
     public async Task WaitOutputAsync(CancellationToken cancellationToken = default)
     {
-        Log("Waiting end of output ...", "lifecycle");
+        DebugLog("Waiting end of output ...", "lifecycle");
         if (_outputTask is not null)
         {
             try
@@ -350,7 +342,7 @@ internal sealed class RawProcessRunner : IAsyncDisposable
             }
             catch (Exception ex)
             {
-                Log(ex, "exception");
+                DebugLog(ex, "exception");
                 throw;
             }
         }
@@ -358,21 +350,21 @@ internal sealed class RawProcessRunner : IAsyncDisposable
         try
         {
             _process.StandardOutput.BaseStream.Close();
-            Log("Closed stdout", "lifecycle");
+            DebugLog("Closed stdout", "lifecycle");
         }
         catch (Exception ex)
         {
-            Log(ex, "stdout");
+            DebugLog(ex, "stdout");
         }
 
         try
         {
             _process.StandardError.BaseStream.Close();
-            Log("Closed stderr", "lifecycle");
+            DebugLog("Closed stderr", "lifecycle");
         }
         catch (Exception ex)
         {
-            Log(ex, "stderr");
+            DebugLog(ex, "stderr");
         }
 
         // Signal completion to the reader. TryComplete() is safe to call multiple times
@@ -395,10 +387,10 @@ internal sealed class RawProcessRunner : IAsyncDisposable
     /// <returns>The process exit code.</returns>
     public async Task<int> WaitForExitAsync(CancellationToken cancellationToken = default)
     {
-        Log("Waiting for exit...", "lifecycle");
+        DebugLog("Waiting for exit...", "lifecycle");
         await _process.WaitForExitAsync(cancellationToken);
         ExitTime = _process.ExitTime.ToUniversalTime();
-        Log($"Exit [{_process.ExitCode}]", "process");
+        DebugLog($"Exit [{_process.ExitCode}]", "process");
         return _process.ExitCode;
     }
 
@@ -438,7 +430,7 @@ internal sealed class RawProcessRunner : IAsyncDisposable
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
-        Log("Killing on disposint", "lifecycle");
+        DebugLog("Killing on disposint", "lifecycle");
         _killRegistration?.Dispose();
         Kill();
         try
@@ -452,7 +444,7 @@ internal sealed class RawProcessRunner : IAsyncDisposable
         }
         catch(Exception ex)
         {
-            Log(ex, "exception");
+            DebugLog(ex, "exception");
         }
         _process.Dispose();
         _pid = -1;

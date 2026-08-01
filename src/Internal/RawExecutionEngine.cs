@@ -1,7 +1,5 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Management.Automation;
-using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Sashimi.Internal;
@@ -17,7 +15,8 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
 {
     protected RawProcessRunner Runner { get; } = new(commandPath,
                                                      arguments,
-                                                     cmdlet.SessionState.Path.CurrentFileSystemLocation.Path);
+                                                     cmdlet.SessionState.Path.CurrentFileSystemLocation.Path,
+                                                     cmdlet.MyInvocation.HistoryId);
     protected string CommandPath { get; } = commandPath;
     protected string[] Arguments { get; } = arguments;
     protected Encoding Encoding { get; } = encoding;
@@ -47,12 +46,12 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
         }
         catch (Exception ex)
         {
-            Runner.Log(ex, "exception");
+            Runner.DebugLog(ex, "exception");
             throw;
         }
         finally
         {
-            PrintDebugMessages();
+            Cmdlet.FlushDebugMessages();
         }
     }
 
@@ -71,7 +70,7 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
         WriteVerboseRaw($"{_logPrefix} Stopping process");
         KillAsync().GetAwaiter().GetResult();
 
-        PrintDebugMessages();
+        Cmdlet.FlushDebugMessages();
     }
 
     public override void EndProcessing()
@@ -95,12 +94,12 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
         }
         catch (Exception ex)
         {
-            Runner.Log(ex, "exception");
+            Runner.DebugLog(ex, "exception");
             throw;
         }
         finally
         {
-            PrintDebugMessages();
+            Cmdlet.FlushDebugMessages();
         }
     }
 
@@ -111,13 +110,13 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
             if (_redirection.StdoutTo is not RedirectTo.Null)
             {
                 Runner.OnStdout += OnOutputChunkAsString;
-                _stdoutDecoder = new(Encoding, line => EmitOutput(new StringOutput(line.ToString(), _redirection.StdoutTo, OutputFrom.Stdout)));
+                _stdoutDecoder = new(Cmdlet, Encoding, line => Output.Add(new StringOutput(line.ToString(), _redirection.StdoutTo, OutputFrom.Stdout)));
             }
 
             if (_redirection.StderrTo is not RedirectTo.Null)
             {
                 Runner.OnStderr += OnErrorChunkAsString;
-                _stderrDecoder = new(Encoding, line => EmitOutput(new StringOutput(line.ToString(), _redirection.StderrTo, OutputFrom.Stderr)));
+                _stderrDecoder = new(Cmdlet, Encoding, line => Output.Add(new StringOutput(line.ToString(), _redirection.StderrTo, OutputFrom.Stderr)));
             }
         }
         else
@@ -136,23 +135,11 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
                 else
                 {
                     Runner.OnStderr += OnErrorChunkAsString;
-                    _stderrDecoder = new(Encoding, line => EmitOutput(new StringOutput(line.ToString(), _redirection.StderrTo, OutputFrom.Stderr)));
+                    _stderrDecoder = new(Cmdlet, Encoding, line => Output.Add(new StringOutput(line.ToString(), _redirection.StderrTo, OutputFrom.Stderr)));
                 }
             }
         }
         Runner.Start(cancellationToken);
-    }
-
-    private void EmitOutput(RawOutputRecord record)
-    {
-        try
-        {
-            Output.Add(record);
-        }
-        catch (Exception ex)
-        {
-            PrintDebug(ex.ToString());
-        }
     }
 
     private void OnOutputChunk(byte[] chunk)
@@ -165,7 +152,7 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
         if (chunk.Length > 0 && _stdoutDecoder is not null)
         {
             _stdoutDecoder.Decode(chunk);
-            PrintDebug($"Write {chunk.Length} bytes to StdOut");
+            Cmdlet.DebugLog($"Write {chunk.Length} bytes to StdOut");
         }
     }
 
@@ -179,7 +166,7 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
         if (chunk.Length > 0 && _stderrDecoder is not null)
         {
             _stderrDecoder.Decode(chunk);
-            PrintDebug($"Write {chunk.Length} bytes to StdErr");
+            Cmdlet.DebugLog($"Write {chunk.Length} bytes to StdErr");
         }
     }
 
@@ -187,7 +174,7 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
     {
         _totalReadBytes += inputBytes.Length;
         _readCount++;
-        PrintDebug($"Read {inputBytes.Length} bytes from pipeline");
+        Cmdlet.DebugLog($"Read {inputBytes.Length} bytes from pipeline");
         await Runner.WriteStdinAsync(inputBytes, cancellationToken);
     }
 
@@ -201,13 +188,13 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
         Runner.CloseStdin();
 
         int exitCode;
-        PrintDebug($"Wait process runner's output to finish");
+        Cmdlet.DebugLog($"Wait process runner's output to finish");
         exitCode = await Runner.WaitForCompleteAsync(cancellationToken);
 
         _stdoutDecoder?.EmitRemaining();
         _stderrDecoder?.EmitRemaining();
 
-        PrintDebug("Complete queueInput");
+        Cmdlet.DebugLog("Complete queueInput");
         Output.CompleteAdding();
 
         return exitCode;
@@ -263,13 +250,13 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
             {
                 case StringOutput line:
                     lineCount++;
-                    PrintDebug($"[{Cmdlet.MyCommandName}] Output line: [{lineCount}] {line.Value}");
+                    Cmdlet.DebugLog($"[{Cmdlet.MyCommandName}] Output line: [{lineCount}] {line.Value}");
                     WriteObject(line.Value);
                     break;
                 case ChunkOutput chunk:
                     totalWriteBytes += chunk.Value.Length;
                     writeCount++;
-                    PrintDebug($"[{Cmdlet.MyCommandName}] Output chunk: {chunk.Value.Length} bytes");
+                    Cmdlet.DebugLog($"[{Cmdlet.MyCommandName}] Output chunk: {chunk.Value.Length} bytes");
                     WriteObject(chunk.Value, false);
                     break;
             }
@@ -281,36 +268,15 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
             switch (output)
             {
                 case StringOutput line:
-                    PrintDebug($"[{Cmdlet.MyCommandName}] Error line: {line.Value}");
+                    Cmdlet.DebugLog($"[{Cmdlet.MyCommandName}] Error line: {line.Value}");
                     break;
                 case ChunkOutput chunk:
-                    PrintDebug($"[{Cmdlet.MyCommandName}] Error chunk: {chunk.Value.Length} bytes");
+                    Cmdlet.DebugLog($"[{Cmdlet.MyCommandName}] Error chunk: {chunk.Value.Length} bytes");
                     break;
             }
 #endif
             ErrorRecord error = new(new RemoteException(output.ToString()), "ExternalCommandError", ErrorCategory.FromStdErr, output);
             Cmdlet.WriteError(error);
         }
-    }
-
-    [Conditional("DEBUG")]
-    public void PrintDebug(string msg,
-                           [CallerMemberName] string callerMethodName = "",
-                           [CallerLineNumber] int callerLineNumber = 0)
-    {
-        Runner.Log($"{msg}", "cmdlet", callerMethodName, callerLineNumber);
-    }
-
-    [Conditional("DEBUG")]
-    public void PrintDebugMessages()
-    {
-#if DEBUG
-        foreach (var msg in Runner.DebugMsgs)
-        {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Error.WriteLine(msg);
-        }
-        Console.ResetColor();
-#endif
     }
 }

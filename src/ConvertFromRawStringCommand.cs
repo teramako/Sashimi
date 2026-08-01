@@ -58,12 +58,14 @@ public sealed class ConvertFromRawStringComand : RawCommandBase
     {
         var bytes = _encoding.GetBytes(text);
         _totalWriteBytes += bytes.Length;
-        PrintDebug($"Output chunk: {bytes.Length} bytes");
+        DebugLog($"Output chunk: {bytes.Length} bytes");
         WriteObject(bytes, false);
     }
 
     protected override void EndProcessing()
     {
         WriteVerboseRaw($"Output total: {_totalWriteBytes}, count: {_writeCount}");
+
+        FlushDebugMessages();
     }
 }

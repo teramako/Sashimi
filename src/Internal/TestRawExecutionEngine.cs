@@ -34,7 +34,7 @@ internal sealed class TestRawExecutionEngine(RawCommandBase cmdlet,
         }
         finally
         {
-            PrintDebugMessages();
+            Cmdlet.FlushDebugMessages();
         }
     }
 

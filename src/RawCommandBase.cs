@@ -1,24 +1,30 @@
 using System.Diagnostics;
 using System.Management.Automation;
 using System.Runtime.CompilerServices;
+using Sashimi.Internal;
 
 namespace Sashimi;
 
 public abstract class RawCommandBase : PSCmdlet
 {
+#if DEBUG
+    internal Logger DebugLogger => field ?? Logger.GetLogger(MyInvocation.HistoryId);
+#endif
+
     [Conditional("DEBUG")]
-    protected void PrintDebug(string msg,
-                              ConsoleColor fg = ConsoleColor.DarkGray,
-                              [CallerMemberName] string callerMethodName = "",
-                              [CallerLineNumber] int callerLineNumber = 0)
+    public void DebugLog(object msg, [CallerMemberName] string callerMethodName = "", [CallerLineNumber] int callerLineNumber = 0)
     {
-        Console.ForegroundColor = fg;
-        Console.Error.WriteLine("({0})[{1,-22}] {2,-20} {3}",
-                                _sw.Elapsed,
-                                MyInvocation.MyCommand.Name,
-                                $"{callerMethodName}:{callerLineNumber}:",
-                                msg);
-        Console.ResetColor();
+#if DEBUG
+        DebugLogger.Log(msg, MyInvocation.MyCommand.Name, callerMethodName, callerLineNumber);
+#endif
+    }
+
+    [Conditional("DEBUG")]
+    public void FlushDebugMessages()
+    {
+#if DEBUG
+        DebugLogger.Print();
+#endif
     }
 
     protected const string MessageBaseName = "Sashimi.resources.messages";
@@ -30,6 +36,7 @@ public abstract class RawCommandBase : PSCmdlet
 
     internal void WriteVerboseRaw(ReadOnlySpan<char> message)
     {
+        DebugLog($"Verbose: {message}");
         WriteVerbose($"({_sw.Elapsed})[{MyCommandName}] {message}");
     }
 
