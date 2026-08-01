@@ -1,5 +1,4 @@
 using System.Management.Automation;
-using System.Text;
 using Sashimi.Internal;
 
 namespace Sashimi;
@@ -26,17 +25,23 @@ public sealed class ConvertToRawStringCommand : RawCommandBase
     private int _readCount;
     private int _lineCount;
 
-    private const int bufferSize = 4096;
-    private StringBuilder _stringBuffer = new(bufferSize);
-    private Decoder _decoder = null!;
-    private bool _pendingCR;
+    private ChunkStringDecoder _stringDecoder = null!;
+
+    private void Output(ReadOnlySpan<char> line)
+    {
+        WriteObject(line.ToString(), false);
+        if (!Raw)
+        {
+            _lineCount++;
+        }
+    }
 
     protected override void BeginProcessing()
     {
         try
         {
             var encoding = EncodingCompleter.GetEncoding(Encoding);
-            _decoder = encoding.GetDecoder();
+            _stringDecoder = new(encoding, Output, Raw.ToBool());
             WriteVerboseRaw($"Set encoding: {encoding.WebName} [{encoding.EncodingName}]");
         }
         catch(Exception ex)
@@ -51,106 +56,17 @@ public sealed class ConvertToRawStringCommand : RawCommandBase
         {
             _totalReadBytes += InputBytes.Length;
             _readCount++;
-
-            Span<char> charBuffer = stackalloc char[bufferSize];
-            _decoder.Convert(InputBytes, charBuffer, false, out var bytesUsed, out var charsUsed, out var completed);
-
-            if (charsUsed == 0)
-                return;
-
-            PrintDebug($"readChars: {charsUsed}");
-
-            ReadOnlySpan<char> chars = charBuffer[..charsUsed];
-            if (Raw)
-            {
-                _stringBuffer.Append(chars);
-            }
-            else
-            {
-                scoped ReadOnlySpan<char> stringChunk;
-                if (_pendingCR && _stringBuffer.Length == 1 && _stringBuffer[0] is '\r')
-                {
-                    _stringBuffer.Clear();
-                    if (chars[0] is '\n')
-                    {
-                        PrintDebug("found CRLF: 0-1");
-                        stringChunk = chars[1..];
-                    }
-                    else
-                    {
-                        PrintDebug("found CR: 0");
-                        stringChunk = chars;
-                    }
-                }
-                else
-                {
-                    _stringBuffer.Append(chars);
-                    stringChunk = _stringBuffer.ToString();
-                    _stringBuffer.Clear();
-                }
-                int i;
-                while ((i = stringChunk.IndexOfAny("\r\n")) >= 0)
-                {
-                    var line = stringChunk[..i];
-                    WriteObject(line.ToString());
-                    _lineCount++;
-                    PrintDebug($"[{_lineCount}] Output {line.Length} chars");
-
-                    char d = stringChunk[i];
-                    if (d is '\r')
-                    {
-                        if (i + 1 == stringChunk.Length)
-                        {
-                            _stringBuffer.Append(d);
-                            _pendingCR = true;
-                            PrintDebug("Set pendingCR");
-                            return;
-                        }
-                        else if (stringChunk[i + 1] is '\n')
-                        {
-                            PrintDebug($"found CRLF: {i}-{i + 1}");
-                            i += 1;
-                        }
-                    }
-                    else
-                    {
-                        PrintDebug($"found LF: {i}");
-                    }
-                    stringChunk = stringChunk[(i + 1)..];
-                }
-
-                if (!stringChunk.IsEmpty)
-                    _stringBuffer.Append(stringChunk);
-            }
+            _stringDecoder.Decode(InputBytes);
         }
     }
 
     protected override void EndProcessing()
     {
-        Span<char> finalBuffer = stackalloc char[4096];
-        _decoder.Convert(Array.Empty<byte>(), finalBuffer, true, out var bytesUsed, out var charsUsed, out var completed);
-        if (charsUsed > 0)
-        {
-            _stringBuffer.Append(finalBuffer[..charsUsed]);
-        }
+        _stringDecoder.EmitRemaining();
 
         if (_totalReadBytes > 0)
         {
             WriteVerboseRaw($"Read total: {_totalReadBytes}, count: {_readCount}");
-        }
-
-        if (Raw)
-        {
-            WriteObject(_stringBuffer.ToString());
-            return;
-        }
-
-        if (_stringBuffer.Length > 0)
-        {
-            var line = _stringBuffer.ToString();
-            WriteObject(line);
-            _lineCount++;
-            PrintDebug($"[{_lineCount}] Output {line.Length} chars (final)");
         }
 
         if (_lineCount > 0)

@@ -24,8 +24,8 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
     protected bool AsString { get; } = asString;
     protected bool ThrowOnNonZeroExitCode { get; } = throwOnNonZeroExitCode;
 
-    private PipeStringDecoder? _stdoutDecoder;
-    private PipeStringDecoder? _stderrDecoder;
+    private ChunkStringDecoder? _stdoutDecoder;
+    private ChunkStringDecoder? _stderrDecoder;
     private Redirection _redirection = redirection;
 
     private long _totalReadBytes;
@@ -111,13 +111,13 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
             if (_redirection.StdoutTo is not RedirectTo.Null)
             {
                 Runner.OnStdout += OnOutputChunkAsString;
-                _stdoutDecoder ??= new(Encoding, Output, _redirection.StdoutTo, OutputFrom.Stdout);
+                _stdoutDecoder = new(Encoding, line => EmitOutput(new StringOutput(line.ToString(), _redirection.StdoutTo, OutputFrom.Stdout)));
             }
 
             if (_redirection.StderrTo is not RedirectTo.Null)
             {
                 Runner.OnStderr += OnErrorChunkAsString;
-                _stderrDecoder ??= new(Encoding, Output, _redirection.StderrTo, OutputFrom.Stderr);
+                _stderrDecoder = new(Encoding, line => EmitOutput(new StringOutput(line.ToString(), _redirection.StderrTo, OutputFrom.Stderr)));
             }
         }
         else
@@ -136,11 +136,23 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
                 else
                 {
                     Runner.OnStderr += OnErrorChunkAsString;
-                    _stderrDecoder ??= new(Encoding, Output, _redirection.StderrTo, OutputFrom.Stderr);
+                    _stderrDecoder = new(Encoding, line => EmitOutput(new StringOutput(line.ToString(), _redirection.StderrTo, OutputFrom.Stderr)));
                 }
             }
         }
         Runner.Start(cancellationToken);
+    }
+
+    private void EmitOutput(RawOutputRecord record)
+    {
+        try
+        {
+            Output.Add(record);
+        }
+        catch (Exception ex)
+        {
+            PrintDebug(ex.ToString());
+        }
     }
 
     private void OnOutputChunk(byte[] chunk)
@@ -152,8 +164,8 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
     {
         if (chunk.Length > 0 && _stdoutDecoder is not null)
         {
-            _stdoutDecoder.WriteBytes(chunk);
-            PrintDebug($"Write {chunk.Length} bytes to StdOut pipe");
+            _stdoutDecoder.Decode(chunk);
+            PrintDebug($"Write {chunk.Length} bytes to StdOut");
         }
     }
 
@@ -166,8 +178,8 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
     {
         if (chunk.Length > 0 && _stderrDecoder is not null)
         {
-            _stderrDecoder.WriteBytes(chunk);
-            PrintDebug($"Write {chunk.Length} bytes to StdErr pipe");
+            _stderrDecoder.Decode(chunk);
+            PrintDebug($"Write {chunk.Length} bytes to StdErr");
         }
     }
 
@@ -182,19 +194,6 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
     private async Task KillAsync()
     {
         Runner.Kill();
-        try
-        {
-            await (_stdoutDecoder?.DisposeAsync() ?? ValueTask.CompletedTask);
-        }
-        catch
-        { }
-
-        try
-        {
-            await (_stderrDecoder?.DisposeAsync() ?? ValueTask.CompletedTask);
-        }
-        catch
-        { }
     }
 
     protected async Task<int> WaitForExitAsync(CancellationToken cancellationToken)
@@ -205,8 +204,8 @@ internal class RawExecutionEngine(RawCommandBase cmdlet,
         PrintDebug($"Wait process runner's output to finish");
         exitCode = await Runner.WaitForCompleteAsync(cancellationToken);
 
-        await (_stdoutDecoder?.DisposeAsync() ?? ValueTask.CompletedTask);
-        await (_stderrDecoder?.DisposeAsync() ?? ValueTask.CompletedTask);
+        _stdoutDecoder?.EmitRemaining();
+        _stderrDecoder?.EmitRemaining();
 
         PrintDebug("Complete queueInput");
         Output.CompleteAdding();
