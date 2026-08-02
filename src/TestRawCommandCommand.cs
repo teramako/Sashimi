@@ -3,35 +3,23 @@ using Sashimi.Internal;
 
 namespace Sashimi;
 
-[Cmdlet(VerbsLifecycle.Invoke, "RawCommand", DefaultParameterSetName = NormalParameterSet)]
-[Alias("raw")]
-[OutputType(typeof(byte[]))]
-[OutputType(typeof(string))]
-public class InvokeRawCommandCommand : RawCommandBase
+[Cmdlet(VerbsDiagnostic.Test, "RawCommand")]
+[Alias("raw?")]
+[OutputType(typeof(bool))]
+public class TestRawCommandCommand : RawCommandBase
 {
-    private const string NormalParameterSet = "Normal";
-    private const string ScriptBlockParameterSet = "ScriptBlock";
-
-    [Parameter(ParameterSetName = NormalParameterSet, Mandatory = true, Position = 0,
+    [Parameter(Mandatory = true, Position = 0,
                HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Command")]
     [ArgumentCompleter(typeof(ExternalCommandCompleter))]
-    public string? Command { get; set; }
+    public string Command { get; set; } = string.Empty;
 
-    [Parameter(ParameterSetName = NormalParameterSet, ValueFromRemainingArguments = true, Position = 1,
+    [Parameter(ValueFromRemainingArguments = true, Position = 1,
                HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Arguments")]
     public string[] Arguments { get; set; } = [];
-
-    [Parameter(ParameterSetName = ScriptBlockParameterSet, Mandatory = true, Position = 0,
-               HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Script")]
-    public ScriptBlock? Script { get; set; }
 
     [Parameter(ValueFromPipeline = true,
                HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Input")]
     public object? Input { get; set; }
-
-    [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.Output")]
-    [Alias("o")]
-    public OutputFrom Output { get; set; } = OutputFrom.Stdout;
 
     [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.AsString")]
     [Alias("s")]
@@ -42,42 +30,17 @@ public class InvokeRawCommandCommand : RawCommandBase
     [Alias("e")]
     public string Encoding { get; set; } = "UTF-8";
 
-    [Parameter(HelpMessageBaseName = MessageBaseName, HelpMessageResourceId = "InvokeRawCommand.parameters.ThrowOnError")]
-    [Alias("t", "ex")]
-    public SwitchParameter ThrowOnError { get; set; }
-
     private ExecutionEngine? _engine;
 
     protected override void BeginProcessing()
     {
         try
         {
-            if (Script is not null)
-            {
-                string[] forwardKeys = [nameof(Encoding), nameof(Output), nameof(AsString), nameof(ThrowOnError)];
-                var forwardParams = MyInvocation.BoundParameters
-                                    .Where(kv => forwardKeys.Contains(kv.Key, StringComparer.InvariantCulture))
-                                    .ToDictionary();
-                _engine = new ScriptBlockExecutionEngine(this, Script, forwardParams);
-            }
-            else if (Command is not null)
-            {
-                _engine = new RawExecutionEngine(this,
+            _engine = new TestRawExecutionEngine(this,
                                                  GetAppInfo(Command).Path,
                                                  Arguments,
-                                                 Redirection.GetRedirectionFromStatement(MyInvocation.Statement, Output),
                                                  EncodingCompleter.GetEncoding(Encoding),
-                                                 AsString,
-                                                 ThrowOnError);
-            }
-            else
-            {
-                ThrowTerminatingError(new(new ArgumentException("Either -Script or -Command must be provided."),
-                                          "MissingParameter",
-                                          ErrorCategory.InvalidArgument,
-                                          this));
-                return;
-            }
+                                                 AsString);
         }
         catch (Exception ex)
         {
@@ -123,14 +86,7 @@ public class InvokeRawCommandCommand : RawCommandBase
         {
             _engine?.EndProcessing();
         }
-        catch (ExternalCommandNonZeroExitException ex)
-        {
-            ThrowTerminatingError(new ErrorRecord(ex,
-                                                  "ExternalCommandNonZeroExit",
-                                                  ErrorCategory.InvalidResult,
-                                                  this));
-        }
-        catch (Exception ex)
+        catch(Exception ex)
         {
             ThrowTerminatingError(new ErrorRecord(ex,
                                                   "RawCommandProcessCompletionFailed",

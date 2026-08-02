@@ -1,5 +1,49 @@
 # Changelog
 
+## 2.1.0 - 2026-08-02
+
+### Changed
+
+- `RawProcessRunner` now preserves stdout/stderr output order by introducing
+  a unified internal output queue and a single-threaded OutputLoop.
+  This eliminates timing-dependent interleaving of output events and improves
+  consistency when external commands write to both streams.
+
+- `LASTEXITCODE` is no longer set when the exit code of an external command cannot be retrieved
+  (e.g., command not found, permission error, internal error).
+  This behavior now matches PowerShell’s own behavior.
+
+- Replaced `InvalidOperationException` with `CommandNotFoundException` when a command cannot be resolved.
+  This aligns the error behavior with PowerShell’s standard command resolution errors.
+
+- Non-zero exit code failures now use a dedicated ErrorId (`ExternalCommandNonZeroExit`)
+  and `InvalidResult` category, clearly separated from internal processing errors.
+
+### Added
+
+- Introduced `Test-RawCommand` (alias: `raw?`)
+  - Executes an external command and returns `true` when the exit code is `0`, otherwise `false`.
+  - Emits stdout and stderr as `Information` records tagged with their originating stream.
+
+- `ExternalCommandNonZeroExitException` is now thrown when `Invoke-RawCommand`
+  is executed with `-ThrowOnError` and the external command returns a non-zero exit code.
+
+### Fixed
+
+- Fixed an issue where external commands that exit early (e.g., due to invalid arguments)
+  could cause `Invoke-RawCommand` to hang or throw a large `AggregateException`.  
+  Stdin writes now detect early process termination, ignore broken pipe errors,
+  and correctly close the input stream to allow the pipeline to complete.
+
+### Internal
+
+- Replace internal pipe-based string decoder with unified chunk-based decoder for consistent output behavior.
+- Added `RawChunk` as a private nested type within RawProcessRunner.
+- Removed legacy direct event invocation from read loops.
+- `RawExecutionEngine` is now extensible and no longer tied to `InvokeRawCommandCommand`.
+  This enables custom execution engines (e.g., for testing or specialized behaviors)
+  to derive from RawExecutionEngine.
+
 ## 2.0.0 - 2026-07-18
 
 ### Changed

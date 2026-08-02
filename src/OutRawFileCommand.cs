@@ -50,7 +50,7 @@ public sealed class OutRawFileCommand : RawCommandBase
         {
             _totalWriteBytes += InputBytes.Length;
             _writeCount++;
-            PrintDebug($"Output chunk {InputBytes.Length} bytes");
+            DebugLog($"Output chunk {InputBytes.Length} bytes");
 
             _fs?.Write(InputBytes, 0, InputBytes.Length);
 
@@ -72,5 +72,7 @@ public sealed class OutRawFileCommand : RawCommandBase
         WriteVerboseRaw($"Output total: {_totalWriteBytes}, count: {_writeCount}");
         _fs?.Close();
         WriteVerboseRaw("Close");
+
+        FlushDebugMessages();
     }
 }

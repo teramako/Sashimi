@@ -34,6 +34,9 @@
   <data name="InvokeRawCommand.parameters.Encoding" xml:space="preserve">
     <value>Specifies the encoding used for input and output strings.</value>
   </data>
+  <data name="InvokeRawCommand.parameters.ThrowOnError" xml:space="preserve">
+    <value>Throw `ExternalCommandNonZeroExitException` when the command completed but returned a non-zero exit code</value>
+  </data>
   <!-- ConvertFrom-RawString -->
   <data name="ConvertFromRawString.parameters.InputString" xml:space="preserve">
     <value>Converts the input string to a byte array using the specified encoding.</value>

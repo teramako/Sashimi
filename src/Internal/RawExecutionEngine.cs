@@ -1,49 +1,58 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Management.Automation;
-using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Sashimi.Internal;
 
-internal sealed class RawExecutionEngine : ExecutionEngine
+internal class RawExecutionEngine(RawCommandBase cmdlet,
+                                  string commandPath,
+                                  string[] arguments,
+                                  Redirection redirection,
+                                  Encoding encoding,
+                                  bool asString = false,
+                                  bool throwOnNonZeroExitCode = false)
+    : ExecutionEngine(cmdlet)
 {
-    private readonly RawProcessRunner _runner;
-    private PipeStringDecoder? _stdoutDecoder;
-    private PipeStringDecoder? _stderrDecoder;
-    private Redirection _redirection;
+    protected RawProcessRunner Runner { get; } = new(commandPath,
+                                                     arguments,
+                                                     cmdlet.SessionState.Path.CurrentFileSystemLocation.Path,
+                                                     cmdlet.MyInvocation.HistoryId);
+    protected string CommandPath { get; } = commandPath;
+    protected string[] Arguments { get; } = arguments;
+    protected Encoding Encoding { get; } = encoding;
+    protected bool AsString { get; } = asString;
+    protected bool ThrowOnNonZeroExitCode { get; } = throwOnNonZeroExitCode;
+
+    private ChunkStringDecoder? _stdoutDecoder;
+    private ChunkStringDecoder? _stderrDecoder;
+    private Redirection _redirection = redirection;
 
     private long _totalReadBytes;
     private int _readCount;
-    private string _logPrefix => $"[{_runner.Pid}][{CommandPath}]";
+    private string _logPrefix => $"[{Runner.Pid}][{CommandPath}]";
 
-    public string CommandPath { get; }
-    public string[] Arguments { get; }
-    public Encoding Encoding { get; }
-    public bool AsString { get; }
-
-    public DateTime StartTime => _runner.StartTime;
-    public DateTime ExitTime => _runner.ExitTime;
+    public DateTime StartTime => Runner.StartTime;
+    public DateTime ExitTime => Runner.ExitTime;
 
     public BlockingCollection<RawOutputRecord> Output { get; } = new(1024);
 
-    public RawExecutionEngine(InvokeRawCommandCommand cmdlet, string commandPath) : base(cmdlet)
-    {
-        CommandPath = commandPath;
-        Arguments = cmdlet.Arguments;
-        Encoding = EncodingCompleter.GetEncoding(cmdlet.Encoding);
-        AsString = cmdlet.AsString.ToBool();
-        _redirection = Redirection.GetRedirectionFromStatement(cmdlet.MyInvocation.Statement, cmdlet.Output);
-        _runner = new RawProcessRunner(CommandPath,
-                                       Arguments,
-                                       cmdlet.SessionState.Path.CurrentFileSystemLocation.Path);
-    }
-
     public override void BeginProcessing()
     {
-        StartAsync(PipelineStopToken);
-        WriteVerboseRaw($"{_logPrefix} Started process with arguments: [{string.Join(", ", Arguments)}] ({StartTime.ToLocalTime():HH:mm:ss.fff})");
-        WriteVerboseRaw($"Stdout -> {_redirection.StdoutTo}, Stderr -> {_redirection.StderrTo}");
+        try
+        {
+            StartAsync(PipelineStopToken);
+            WriteVerboseRaw($"{_logPrefix} Started process with arguments: [{string.Join(", ", Arguments)}] ({StartTime.ToLocalTime():HH:mm:ss.fff})");
+            WriteVerboseRaw($"Stdout -> {_redirection.StdoutTo}, Stderr -> {_redirection.StderrTo}");
+        }
+        catch (Exception ex)
+        {
+            Runner.DebugLog(ex, "exception");
+            throw;
+        }
+        finally
+        {
+            Cmdlet.FlushDebugMessages();
+        }
     }
 
     public override void ProcessRecord(byte[] inputBytes)
@@ -61,7 +70,7 @@ internal sealed class RawExecutionEngine : ExecutionEngine
         WriteVerboseRaw($"{_logPrefix} Stopping process");
         KillAsync().GetAwaiter().GetResult();
 
-        PrintDebugMessages();
+        Cmdlet.FlushDebugMessages();
     }
 
     public override void EndProcessing()
@@ -76,17 +85,21 @@ internal sealed class RawExecutionEngine : ExecutionEngine
             WriteVerboseRaw($"{_logPrefix} End [ExitCode = {exitCode}]"
                             + $" ({ExitTime.ToLocalTime():HH:mm:ss.fff},"
                             + $" Duration={ExitTime - StartTime}))");
-            Cmdlet.SessionState.PSVariable.Set("LASTEXITCODE", exitCode);
+            Cmdlet.SetLastExitCode(exitCode);
 
+            if (exitCode != 0 && ThrowOnNonZeroExitCode)
+            {
+                throw new ExternalCommandNonZeroExitException($"'{CommandPath}' exited with {exitCode}", exitCode);
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            Cmdlet.SessionState.PSVariable.Set("LASTEXITCODE", 1);
+            Runner.DebugLog(ex, "exception");
             throw;
         }
         finally
         {
-            PrintDebugMessages();
+            Cmdlet.FlushDebugMessages();
         }
     }
 
@@ -96,64 +109,64 @@ internal sealed class RawExecutionEngine : ExecutionEngine
         {
             if (_redirection.StdoutTo is not RedirectTo.Null)
             {
-                _runner.OnStdout += OnOutputChunkAsString;
-                _stdoutDecoder ??= new(Encoding, Output, _redirection.StdoutTo);
+                Runner.OnStdout += OnOutputChunkAsString;
+                _stdoutDecoder = new(Cmdlet, Encoding, line => Output.Add(new StringOutput(line.ToString(), _redirection.StdoutTo, OutputFrom.Stdout)));
             }
 
             if (_redirection.StderrTo is not RedirectTo.Null)
             {
-                _runner.OnStderr += OnErrorChunkAsString;
-                _stderrDecoder ??= new(Encoding, Output, _redirection.StderrTo);
+                Runner.OnStderr += OnErrorChunkAsString;
+                _stderrDecoder = new(Cmdlet, Encoding, line => Output.Add(new StringOutput(line.ToString(), _redirection.StderrTo, OutputFrom.Stderr)));
             }
         }
         else
         {
             if (_redirection.StdoutTo is not RedirectTo.Null)
             {
-                _runner.OnStdout += OnOutputChunk;
+                Runner.OnStdout += OnOutputChunk;
             }
 
             if (_redirection.StderrTo is not RedirectTo.Null)
             {
                 if (_redirection.StderrTo is RedirectTo.Output)
                 {
-                    _runner.OnStderr += OnErrorChunk;
+                    Runner.OnStderr += OnErrorChunk;
                 }
                 else
                 {
-                    _runner.OnStderr += OnErrorChunkAsString;
-                    _stderrDecoder ??= new(Encoding, Output, _redirection.StderrTo);
+                    Runner.OnStderr += OnErrorChunkAsString;
+                    _stderrDecoder = new(Cmdlet, Encoding, line => Output.Add(new StringOutput(line.ToString(), _redirection.StderrTo, OutputFrom.Stderr)));
                 }
             }
         }
-        _runner.Start(cancellationToken);
+        Runner.Start(cancellationToken);
     }
 
     private void OnOutputChunk(byte[] chunk)
     {
-        Output.Add(new ChunkOutput(chunk, _redirection.StdoutTo));
+        Output.Add(new ChunkOutput(chunk, _redirection.StdoutTo, OutputFrom.Stdout));
     }
 
     private void OnOutputChunkAsString(byte[] chunk)
     {
         if (chunk.Length > 0 && _stdoutDecoder is not null)
         {
-            _stdoutDecoder.WriteBytes(chunk);
-            PrintDebug($"Write {chunk.Length} bytes to StdOut pipe");
+            _stdoutDecoder.Decode(chunk);
+            Cmdlet.DebugLog($"Write {chunk.Length} bytes to StdOut");
         }
     }
 
     private void OnErrorChunk(byte[] chunk)
     {
-        Output.Add(new ChunkOutput(chunk, _redirection.StderrTo));
+        Output.Add(new ChunkOutput(chunk, _redirection.StderrTo, OutputFrom.Stderr));
     }
 
     private void OnErrorChunkAsString(byte[] chunk)
     {
         if (chunk.Length > 0 && _stderrDecoder is not null)
         {
-            _stderrDecoder.WriteBytes(chunk);
-            PrintDebug($"Write {chunk.Length} bytes to StdErr pipe");
+            _stderrDecoder.Decode(chunk);
+            Cmdlet.DebugLog($"Write {chunk.Length} bytes to StdErr");
         }
     }
 
@@ -161,46 +174,33 @@ internal sealed class RawExecutionEngine : ExecutionEngine
     {
         _totalReadBytes += inputBytes.Length;
         _readCount++;
-        PrintDebug($"Read {inputBytes.Length} bytes from pipeline");
-        await _runner.WriteStdinAsync(inputBytes, cancellationToken);
+        Cmdlet.DebugLog($"Read {inputBytes.Length} bytes from pipeline");
+        await Runner.WriteStdinAsync(inputBytes, cancellationToken);
     }
 
     private async Task KillAsync()
     {
-        _runner.Kill();
-        try
-        {
-            await (_stdoutDecoder?.DisposeAsync() ?? ValueTask.CompletedTask);
-        }
-        catch
-        { }
-
-        try
-        {
-            await (_stderrDecoder?.DisposeAsync() ?? ValueTask.CompletedTask);
-        }
-        catch
-        { }
+        Runner.Kill();
     }
 
-    private async Task<int> WaitForExitAsync(CancellationToken cancellationToken)
+    protected async Task<int> WaitForExitAsync(CancellationToken cancellationToken)
     {
-        _runner.CloseStdin();
+        Runner.CloseStdin();
 
         int exitCode;
-        PrintDebug($"Wait process runner's output to finish");
-        exitCode = await _runner.WaitForCompleteAsync(cancellationToken);
+        Cmdlet.DebugLog($"Wait process runner's output to finish");
+        exitCode = await Runner.WaitForCompleteAsync(cancellationToken);
 
-        await (_stdoutDecoder?.DisposeAsync() ?? ValueTask.CompletedTask);
-        await (_stderrDecoder?.DisposeAsync() ?? ValueTask.CompletedTask);
+        _stdoutDecoder?.EmitRemaining();
+        _stderrDecoder?.EmitRemaining();
 
-        PrintDebug("Complete queueInput");
+        Cmdlet.DebugLog("Complete queueInput");
         Output.CompleteAdding();
 
         return exitCode;
     }
 
-    private void OutputRecords()
+    protected virtual void OutputRecords()
     {
         long totalWriteBytes = 0;
         int writeCount = 0;
@@ -229,7 +229,7 @@ internal sealed class RawExecutionEngine : ExecutionEngine
                     break;
                 case RedirectTo.Information: // `n>&6`:
                     // Since PowerShell core does not support, this branch will likely never be entered.
-                    InformationRecord record = new(output, $"{_runner.Name} (PID: {_runner.Pid})");
+                    InformationRecord record = new(output, $"{Runner.Name} (PID: {Runner.Pid})");
                     record.Tags.AddRange("PSHOST", "redirect");
                     Cmdlet.WriteInformation(record);
                     break;
@@ -250,13 +250,13 @@ internal sealed class RawExecutionEngine : ExecutionEngine
             {
                 case StringOutput line:
                     lineCount++;
-                    PrintDebug($"[{Cmdlet.MyCommandName}] Output line: [{lineCount}] {line.Value}");
+                    Cmdlet.DebugLog($"[{Cmdlet.MyCommandName}] Output line: [{lineCount}] {line.Value}");
                     WriteObject(line.Value);
                     break;
                 case ChunkOutput chunk:
                     totalWriteBytes += chunk.Value.Length;
                     writeCount++;
-                    PrintDebug($"[{Cmdlet.MyCommandName}] Output chunk: {chunk.Value.Length} bytes");
+                    Cmdlet.DebugLog($"[{Cmdlet.MyCommandName}] Output chunk: {chunk.Value.Length} bytes");
                     WriteObject(chunk.Value, false);
                     break;
             }
@@ -268,36 +268,15 @@ internal sealed class RawExecutionEngine : ExecutionEngine
             switch (output)
             {
                 case StringOutput line:
-                    PrintDebug($"[{Cmdlet.MyCommandName}] Error line: {line.Value}");
+                    Cmdlet.DebugLog($"[{Cmdlet.MyCommandName}] Error line: {line.Value}");
                     break;
                 case ChunkOutput chunk:
-                    PrintDebug($"[{Cmdlet.MyCommandName}] Error chunk: {chunk.Value.Length} bytes");
+                    Cmdlet.DebugLog($"[{Cmdlet.MyCommandName}] Error chunk: {chunk.Value.Length} bytes");
                     break;
             }
 #endif
             ErrorRecord error = new(new RemoteException(output.ToString()), "ExternalCommandError", ErrorCategory.FromStdErr, output);
             Cmdlet.WriteError(error);
         }
-    }
-
-    [Conditional("DEBUG")]
-    public void PrintDebug(string msg,
-                           [CallerMemberName] string callerMethodName = "",
-                           [CallerLineNumber] int callerLineNumber = 0)
-    {
-        _runner.Log($"{msg}", "cmdlet", callerMethodName, callerLineNumber);
-    }
-
-    [Conditional("DEBUG")]
-    public void PrintDebugMessages()
-    {
-#if DEBUG
-        foreach (var msg in _runner.DebugMsgs)
-        {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Error.WriteLine(msg);
-        }
-        Console.ResetColor();
-#endif
     }
 }
