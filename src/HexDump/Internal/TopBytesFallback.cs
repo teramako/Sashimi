@@ -100,21 +100,21 @@ internal class TopBytesFallback : DecoderFallback
         }
 
         /// <remarks>
-        /// Not implemented because fallback processing is intentionally disabled.
+        /// Not supported because fallback processing is intentionally disabled.
         /// </remarks>
         /// <inheritdoc/>
         public override char GetNextChar()
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException("TopBytesFallbackBuffer does not support GetNextChar().");
         }
 
         /// <remarks>
-        /// Not implemented because fallback processing is intentionally disabled.
+        /// Not supported because fallback processing is intentionally disabled.
         /// </remarks>
         /// <inheritdoc/>
         public override bool MovePrevious()
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException("TopBytesFallbackBuffer does not support MovePrevious().");
         }
     }
 }
