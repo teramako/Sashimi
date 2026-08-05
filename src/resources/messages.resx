@@ -70,4 +70,38 @@
   <data name="OutRawFile.parameters.PassThru" xml:space="preserve">
     <value>Returns the written byte array to the pipeline.</value>
   </data>
+  <data name="HexDump.parameters.Data" xml:space="preserve">
+    <value>Byte array to be dumped.</value>
+  </data>
+  <data name="HexDump.parameters.Path" xml:space="preserve">
+    <value>File path to be dumped.</value>
+  </data>
+  <data name="HexDump.parameters.Config" xml:space="preserve">
+    <value>A set of settings including encoding, color scheme settings, etc.</value>
+  </data>
+  <data name="HexDump.parameters.Encoding" xml:space="preserve">
+    <value>Encoding used to decode byte strings into characters.</value>
+  </data>
+  <data name="HexDump.parameters.Offset" xml:space="preserve">
+    <value>Dump start position.</value>
+  </data>
+  <data name="HexDump.parameters.Length" xml:space="preserve">
+    <value>Length from the dump start position to the end.</value>
+  </data>
+  <data name="HexDump.parameters.Color" xml:space="preserve">
+    <value>Color scheme settings for hexadecimal dump columns and textualized columns.
+
+- `None`: no color
+- `ByByte`: color scheme based on byte values
+- `ByUnicodeCategory`: color scheme based on Unicode categories
+- `ByCharType`: color scheme based on ASCII control characters, ASCII characters and multi-byte characters values that could not be decoded into characters, etc.
+</value>
+  </data>
+  <data name="HexDump.parameters.View" xml:space="preserve">
+    <value>Output Format.
+
+- `Split` (default): displays hex values and character values in separate columns.
+- `Unified`: displays the hex value on the first line and the character value on the second line in a single column.
+</value>
+  </data>
 </root>

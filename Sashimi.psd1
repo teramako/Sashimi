@@ -12,7 +12,7 @@
 # RootModule = ''
 
 # Version number of this module.
-ModuleVersion = '2.1.0'
+ModuleVersion = '3.0.0'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -60,10 +60,10 @@ PowerShellVersion = '7.6'
 # ScriptsToProcess = @()
 
 # Type files (.ps1xml) to be loaded when importing this module
-# TypesToProcess = @()
+TypesToProcess = 'HexDump.Types.ps1xml'
 
 # Format files (.ps1xml) to be loaded when importing this module
-# FormatsToProcess = @()
+FormatsToProcess = 'HexDump.Formats.ps1xml'
 
 # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
 NestedModules = @('libs/Sashimi.dll')
@@ -72,13 +72,13 @@ NestedModules = @('libs/Sashimi.dll')
 FunctionsToExport = @()
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
-CmdletsToExport = 'Invoke-RawCommand', 'ConvertFrom-RawString', 'ConvertTo-RawString', 'Out-RawFile', 'Test-RawCommand'
+CmdletsToExport = 'Invoke-RawCommand', 'ConvertFrom-RawString', 'ConvertTo-RawString', 'Out-RawFile', 'Test-RawCommand', 'Show-HexDump'
 
 # Variables to export from this module
 # VariablesToExport = @()
 
 # Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.
-AliasesToExport = 'raw', 'a2b', 'b2a', 'bout', 'raw?'
+AliasesToExport = 'raw', 'a2b', 'b2a', 'bout', 'raw?', 'hexd'
 
 # DSC resources to export from this module
 # DscResourcesToExport = @()
@@ -114,7 +114,7 @@ PrivateData = @{
         ReleaseNotes = 'https://github.com/teramako/Sashimi/releases'
 
         # Prerelease string of this module
-        # Prerelease = ''
+        Prerelease = 'preview.1'
 
         # Flag to indicate whether the module requires explicit user acceptance for install/update/save
         # RequireLicenseAcceptance = $false

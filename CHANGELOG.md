@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Introduced `Show-HexDump` (alias: `hexd`)
+  - Dump bytes data in hexadecimal.
+
 ## 2.1.0 - 2026-08-02
 
 ### Changed
