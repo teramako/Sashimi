@@ -90,6 +90,8 @@ AliasesToExport = 'raw', 'a2b', 'b2a', 'bout', 'raw?', 'hexd'
 FileList = @(
     'Sashimi.psd1'
     'libs/Sashimi.dll'
+    'HexDump.Formats.ps1xml'
+    'HexDump.Types.ps1xml'
     'README.md'
 )
 
