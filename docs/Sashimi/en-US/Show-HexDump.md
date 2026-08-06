@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: Sashimi-Help.xml
+external help file: Sashimi.dll-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: Sashimi
