@@ -4,7 +4,7 @@ external help file: Sashimi.dll-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: Sashimi
-ms.date: 07/21/2026
+ms.date: 08/04/2026
 PlatyPS schema version: 2024-05-01
 title: Invoke-RawCommand
 ---
@@ -377,3 +377,4 @@ This cmdlet bypasses all PowerShell text processing and is intended for scenario
 
 - [ConvertFrom-RawString](ConvertFrom-RawString.md)
 - [ConvertTo-RawString](ConvertTo-RawString.md)
+- [Show-HexDump](Show-HexDump.md)

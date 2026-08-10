@@ -4,7 +4,7 @@ external help file: Sashimi.dll-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: Sashimi
-ms.date: 06/14/2026
+ms.date: 08/04/2026
 PlatyPS schema version: 2024-05-01
 title: ConvertFrom-RawString
 ---
@@ -162,3 +162,4 @@ This cmdlet is intended for precise control of text‑to‑binary conversion, es
 
 - [ConvertTo-RawString](ConvertTo-RawString.md)
 - [Invoke-RawCommand](Invoke-RawCommand.md)
+- [Show-HexDump](Show-HexDump.md)

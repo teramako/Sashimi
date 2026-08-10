@@ -8,9 +8,10 @@ namespace Sashimi.Internal;
 
 internal class Logger
 {
-    private static Logger? _currentLogger = null;
     private static long _currentId = -1;
     private static readonly object _sync = new();
+
+    internal static Logger? Instance { get; private set; } = null;
 
     /// <summary>
     /// Gets the <see cref="Logger"/> instance associated with the current invocation.
@@ -44,14 +45,14 @@ internal class Logger
     {
         lock (_sync)
         {
-            _currentLogger ??= new();
+            Instance ??= new();
             if (id != _currentId)
             {
                 _currentId = id;
-                _currentLogger._messages.Clear();
-                _currentLogger._sw.Restart();
+                Instance._messages.Clear();
+                Instance._sw.Restart();
             }
-            return _currentLogger;
+            return Instance;
         }
     }
 

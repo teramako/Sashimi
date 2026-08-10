@@ -1,0 +1,61 @@
+namespace Sashimi.HexDump.Internal;
+
+/// <summary>
+/// RGB Color Structure
+/// </summary>
+internal readonly record struct RGB(byte R, byte G, byte B)
+{
+    /// <summary>
+    /// Returns <see cref="RGB"/> from HLS parameters
+    /// </summary>
+    /// <param name="h">Hue: 0 - 359</param>
+    /// <param name="l">Lightness: 0 - 100</param>
+    /// <param name="s">Saturation: 0 - 100</param>
+    public static RGB FromHLS(int h, int l, int s)
+    {
+        if (l is > 100 or < 0)
+            throw new ArgumentOutOfRangeException(nameof(l), l, "Lightness must be between 0 and 100");
+        if (s is > 100 or < 0)
+            throw new ArgumentOutOfRangeException(nameof(s), s, "Saturation must be between 0 and 100");
+
+        double r; double g; double b;
+        double max; double min;
+
+        if (l > 50)
+        {
+            max = l + (s * (1.0 - (l / 100.0)));
+            min = l - (s * (1.0 - (l / 100.0)));
+        }
+        else
+        {
+            max = l + (s * l / 100.0);
+            min = l - (s * l / 100.0);
+        }
+
+        h = h < 0 ? 360 + (h % 360) : h % 360;
+
+        (r, g, b) = h switch
+        {
+            < 60 => (max, min + ((max - min) * h / 60.0), min),
+            < 120 => (min + ((max - min) * (120 - h) / 60.0), max, min),
+            < 180 => (min, max, min + ((max - min) * (h - 120) / 60.0)),
+            < 240 => (min, min + ((max - min) * (240 - h) / 60.0), max),
+            < 300 => (min + ((max - min) * (h - 240) / 60.0), min, max),
+            _ => (max, min, min + ((max - min) * (360 - h) / 60.0))
+        };
+
+        return new((byte)Math.Round(r * 0xFF / 100.0),
+                   (byte)Math.Round(g * 0xFF / 100.0),
+                   (byte)Math.Round(b * 0xFF / 100.0));
+    }
+
+    /// <summary>
+    /// Returns the escape sequence for the terminal background color.
+    /// Requires a terminal that supports 256 colors.
+    /// </summary>
+    /// <returns><c>\e[48;2;{<see cref="R"/>};{<see cref="G"/>};{<see cref="B"/>}m</c></returns>
+    public string ToTermBg()
+    {
+        return $"\u001b[48;2;{R};{G};{B}m";
+    }
+}
