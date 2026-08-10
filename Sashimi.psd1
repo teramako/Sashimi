@@ -116,7 +116,7 @@ PrivateData = @{
         ReleaseNotes = 'https://github.com/teramako/Sashimi/releases'
 
         # Prerelease string of this module
-        Prerelease = 'preview.1'
+        # Prerelease = ''
 
         # Flag to indicate whether the module requires explicit user acceptance for install/update/save
         # RequireLicenseAcceptance = $false
